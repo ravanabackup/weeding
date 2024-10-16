@@ -1,0 +1,262 @@
+// ==UserScript==
+// @name         High Court Date Picker with Auto-Submit and Auto-fill
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Add date picker functionality and auto-fill Batch, Rack, Shelf fields with visual feedback and counter
+// @match        *://10.145.22.11:8888/weed_catalogue.php*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Date Picker Variables
+    let selectedDate = '';
+
+    // Auto-fill Variables
+    const CONFIG = {
+        HEART: {
+            ACTIVE: {
+                color: '#2ecc71', // Green
+                symbol: '❤'
+            },
+            INACTIVE: {
+                color: '#e74c3c', // Red
+                symbol: '❤'
+            },
+            style: {
+                fontSize: '30px',
+                cursor: 'pointer',
+                position: 'fixed',
+                top: '10px',
+                right: '10px',
+                zIndex: '9999',
+                transition: 'all 0.3s ease',
+                textShadow: '2px 2px 4px rgba(0,0,0,0.2)',
+                padding: '10px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                textAlign: 'center'
+            }
+        },
+        COUNTER: {
+            style: {
+                fontSize: '14px',
+                fontWeight: 'bold',
+                color: '#34495e',
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                padding: '5px 10px',
+                borderRadius: '10px',
+                position: 'fixed',
+                right: '10px',
+                top: '65px',
+                zIndex: '9999',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+                fontFamily: 'Arial, sans-serif',
+                border: '2px solid #bdc3c7',
+                minWidth: '30px',
+                textAlign: 'center'
+            }
+        }
+    };
+
+    const state = {
+        batchNo: '',
+        rackNo: '',
+        shelfNo: '',
+        isDataLoaded: false,
+        selectedCount: 0
+    };
+
+    // Add Date Picker Functionality
+    function addDatePicker() {
+        const dateButton = document.createElement('button');
+        dateButton.innerHTML = '📅';
+        dateButton.style.position = 'fixed';
+        dateButton.style.top = '140px';
+        dateButton.style.right = '10px';
+        dateButton.style.zIndex = '9999';
+        dateButton.onclick = toggleDatePicker;
+        document.body.appendChild(dateButton);
+    }
+
+    function toggleDatePicker() {
+        const existingPicker = document.getElementById('customDatePicker');
+        if (existingPicker) {
+            existingPicker.remove();
+        } else {
+            createDatePicker();
+        }
+    }
+
+    function createDatePicker() {
+        const picker = document.createElement('input');
+        picker.type = 'date';
+        picker.id = 'customDatePicker';
+        picker.style.position = 'fixed';
+        picker.style.top = '100px';
+        picker.style.right = '10px';
+        picker.style.zIndex = '10000';
+        picker.onchange = updateDates;
+        document.body.appendChild(picker);
+        if (selectedDate) {
+            picker.value = selectedDate;
+        }
+    }
+
+    function updateDates(event) {
+        const formattedDate = formatDate(event.target.value);
+        selectedDate = event.target.value;
+
+        // Auto-fill date fields
+        const dateFromInput = document.querySelector('input[name="f_date"]');
+        const dateToInput = document.querySelector('input[name="t_date"]');
+
+        if (dateFromInput && dateToInput) {
+            dateFromInput.value = formattedDate;
+            dateToInput.value = formattedDate;
+
+            triggerEvent(dateFromInput, 'change');
+            triggerEvent(dateToInput, 'change');
+            clickSubmitButton();
+        }
+    }
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
+
+    function triggerEvent(element, eventType) {
+        const event = new Event(eventType, { bubbles: true });
+        element.dispatchEvent(event);
+    }
+
+    function clickSubmitButton() {
+        const submitButton = document.querySelector('.btn.btn-success');
+        if (submitButton) {
+            submitButton.click();
+        }
+    }
+
+    // Auto-fill Functionality
+    function createHeartButton() {
+        const heartButton = document.createElement('span');
+        Object.assign(heartButton.style, CONFIG.HEART.style);
+        updateHeartButtonState(heartButton);
+
+        heartButton.addEventListener('mouseover', () => {
+            heartButton.style.transform = 'scale(1.1)';
+        });
+        
+        heartButton.addEventListener('mouseout', () => {
+            heartButton.style.transform = 'scale(1)';
+        });
+
+        return heartButton;
+    }
+
+    function createCounterElement() {
+        const counter = document.createElement('div');
+        Object.assign(counter.style, CONFIG.COUNTER.style);
+        updateCounter(counter);
+        return counter;
+    }
+
+    function updateCounter(counterElement) {
+        state.selectedCount = document.querySelectorAll('input[type="checkbox"]:checked').length;
+        counterElement.textContent = `Selected: ${state.selectedCount}`;
+        
+        if (state.selectedCount > 0) {
+            counterElement.style.backgroundColor = '#e8f5e9';
+            counterElement.style.borderColor = '#2ecc71';
+            counterElement.style.color = '#2e7d32';
+        } else {
+            counterElement.style.backgroundColor = 'rgba(255,255,255,0.9)';
+            counterElement.style.borderColor = '#bdc3c7';
+            counterElement.style.color = '#34495e';
+        }
+    }
+
+    function updateHeartButtonState(heartButton) {
+        const currentState = state.isDataLoaded ? CONFIG.HEART.ACTIVE : CONFIG.HEART.INACTIVE;
+        heartButton.innerHTML = currentState.symbol;
+        heartButton.style.color = currentState.color;
+    }
+
+    function fillRowValues(row) {
+        if (!row) return;
+
+        const inputs = row.querySelectorAll('input[type="text"]');
+        const values = [state.batchNo, state.rackNo, state.shelfNo];
+        
+        inputs.forEach((input, index) => {
+            if (input && values[index]) {
+                input.value = values[index];
+            }
+        });
+
+        const locationDropdown = row.querySelector('select');
+        if (locationDropdown) {
+            const cjaOption = Array.from(locationDropdown.options)
+                .find(option => option.text.trim().toUpperCase() === 'CJA');
+            
+            if (cjaOption) {
+                locationDropdown.value = cjaOption.value;
+            }
+        }
+    }
+
+    async function promptForValues(heartButton) {
+        const prompts = [
+            { field: 'batchNo', message: 'Please enter Batch number:' },
+            { field: 'rackNo', message: 'Please enter Rack number:' },
+            { field: 'shelfNo', message: 'Please enter Shelf number:' }
+        ];
+
+        for (const prompt of prompts) {
+            const value = window.prompt(prompt.message);
+            if (value === null) return false;
+            state[prompt.field] = value;
+        }
+
+        state.isDataLoaded = true;
+        updateHeartButtonState(heartButton);
+        return true;
+    }
+
+    function init() {
+        if (window.location.href === 'http://10.145.22.11:8888/weed_catalogue.php') {
+            addDatePicker(); // Initialize Date Picker
+            const heartButton = createHeartButton();
+            const counterElement = createCounterElement();
+            
+            document.body.appendChild(heartButton);
+            document.body.appendChild(counterElement);
+
+            heartButton.addEventListener('click', async () => {
+                if (await promptForValues(heartButton)) {
+                    const checkedBoxes = document.querySelectorAll('input[type="checkbox"]:checked');
+                    checkedBoxes.forEach(checkbox => fillRowValues(checkbox.closest('tr')));
+                }
+            });
+
+            document.addEventListener('change', (e) => {
+                if (e.target?.type === 'checkbox') {
+                    updateCounter(counterElement);
+                    if (state.isDataLoaded && e.target.checked) {
+                        fillRowValues(e.target.closest('tr'));
+                    }
+                }
+            });
+
+            updateCounter(counterElement);
+        }
+    }
+
+    window.addEventListener('load', init);
+})();
