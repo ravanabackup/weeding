@@ -1,0 +1,93 @@
+// ==UserScript==
+// @name         Toggle Auto Like Instagram Playing Post
+// @namespace    http://tampermonkey.net/
+// @version      0.3
+// @description  Toggle automatic liking of Instagram posts that are currently playing (videos) using a heart button.
+// @author       You
+// @match        https://www.instagram.com/*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    let scriptActive = false; // Initially, the script is off
+
+    // Create a toggle button for starting and stopping the auto-like feature
+    function createToggleButton() {
+        const button = document.createElement('div');
+        button.id = 'toggleAutoLikeButton';
+        button.style.position = 'fixed';
+        button.style.bottom = '20px';
+        button.style.right = '20px';
+        button.style.zIndex = '10000';
+        button.style.width = '50px';
+        button.style.height = '50px';
+        button.style.backgroundColor = 'red'; // Start as red (off)
+        button.style.borderRadius = '50%';
+        button.style.boxShadow = '0px 0px 10px rgba(0, 0, 0, 0.5)';
+        button.style.cursor = 'pointer';
+        button.innerHTML = '❤️'; // Red heart for off state
+        button.style.color = 'white';
+        button.style.fontSize = '24px';
+        button.style.display = 'flex';
+        button.style.justifyContent = 'center';
+        button.style.alignItems = 'center';
+
+        document.body.appendChild(button);
+
+        // Add click event to toggle the auto-like feature on/off
+        button.addEventListener('click', () => {
+            scriptActive = !scriptActive;
+            if (scriptActive) {
+                button.style.backgroundColor = 'green'; // Change to green when active
+                button.innerHTML = '💚'; // Green heart for on state
+                console.log('Auto-like script activated');
+            } else {
+                button.style.backgroundColor = 'red'; // Change back to red when inactive
+                button.innerHTML = '❤️'; // Red heart for off state
+                console.log('Auto-like script deactivated');
+            }
+        });
+    }
+
+    // Function to check if a post is playing (video is playing)
+    function isPostPlaying(videoElement) {
+        return videoElement && !videoElement.paused;
+    }
+
+    // Function to like a post
+    function likePost(post) {
+        const likeButton = post.querySelector('svg[aria-label="Like"]');
+
+        // If the button exists and it's not already liked (we'll check if the button isn't a "filled" heart)
+        if (likeButton && likeButton.getAttribute('fill') !== '#ed4956') {
+            likeButton.parentElement.click();
+            console.log('Post liked!');
+        } else {
+            console.log('Post already liked or no like button found.');
+        }
+    }
+
+    // Check for posts that are playing and like them (only when the script is active)
+    function checkAndLikePlayingPosts() {
+        if (scriptActive) {
+            const posts = document.querySelectorAll('article');
+            posts.forEach(post => {
+                const videoElement = post.querySelector('video');
+                if (isPostPlaying(videoElement)) {
+                    likePost(post);
+                }
+            });
+        }
+    }
+
+    // Run the check periodically
+    setInterval(checkAndLikePlayingPosts, 3000);  // Check every 3 seconds
+
+    // Create the toggle button when the page loads
+    window.onload = function() {
+        createToggleButton();
+    };
+
+})();
