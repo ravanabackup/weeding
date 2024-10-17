@@ -1,0 +1,312 @@
+// ==UserScript==
+// @name         Instagram Automation with Text Black and Images Hidden
+// @namespace    http://tampermonkey.net/
+// @version      4.0
+// @description  Instagram script that makes all text black, hides all images, and adds emojis based on audio status while keeping other features intact (auto-scroll, like, etc.). Toggle button to restore original styles and re-enable minimalistic mode.
+// @author       You
+// @match        https://www.instagram.com/*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    let scriptActive = false;
+    let audioOnly = false;
+    let autoLike = false;
+    let minimalisticMode = false;
+    let lastProcessedTime = Date.now();
+    let minimumWaitTime = 5000; // Minimum 5 seconds before processing the next post
+    let checkInterval = null;
+
+    // Create control panel
+    function createControlPanel() {
+        const panel = document.createElement('div');
+        panel.id = 'instagram-control-panel';
+        panel.style.position = 'fixed';
+        panel.style.top = '20px';
+        panel.style.left = '20px';
+        panel.style.zIndex = '10000';
+        panel.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        panel.style.padding = '10px';
+        panel.style.borderRadius = '10px';
+        panel.style.display = 'flex';
+        panel.style.flexDirection = 'column';
+        panel.style.gap = '10px';
+        panel.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+
+        // Create buttons with common styles
+        const buttonStyles = `
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        `;
+
+        // Auto-Scroll Toggle
+        const scrollButton = document.createElement('button');
+        scrollButton.innerHTML = '⏭️ Auto-Scroll: OFF';
+        scrollButton.style.cssText = buttonStyles;
+        scrollButton.style.backgroundColor = '#ff4444';
+        scrollButton.onclick = toggleAutoScroll;
+
+        // Audio-Only Toggle
+        const audioButton = document.createElement('button');
+        audioButton.innerHTML = '🔊 Audio-Only: OFF';
+        audioButton.style.cssText = buttonStyles;
+        audioButton.style.backgroundColor = '#ff4444';
+        audioButton.onclick = toggleAudioOnly;
+
+        // Auto-Like Toggle
+        const likeButton = document.createElement('button');
+        likeButton.innerHTML = '❤️ Auto-Like: OFF';
+        likeButton.style.cssText = buttonStyles;
+        likeButton.style.backgroundColor = '#ff4444';
+        likeButton.onclick = toggleAutoLike;
+
+        // Restore/Toggle Style Button
+        const restoreButton = document.createElement('button');
+        restoreButton.innerHTML = '🔄 Minimalistic Mode: OFF';
+        restoreButton.style.cssText = buttonStyles;
+        restoreButton.style.backgroundColor = '#ffcc00';
+        restoreButton.onclick = toggleMinimalisticMode;
+
+        panel.appendChild(scrollButton);
+        panel.appendChild(audioButton);
+        panel.appendChild(likeButton);
+        panel.appendChild(restoreButton);
+        document.body.appendChild(panel);
+    }
+
+    createControlPanel();
+
+    function toggleAutoScroll() {
+        scriptActive = !scriptActive;
+        const button = document.querySelector('#instagram-control-panel button:nth-child(1)');
+        button.innerHTML = `⏭️ Auto-Scroll: ${scriptActive ? 'ON' : 'OFF'}`;
+        button.style.backgroundColor = scriptActive ? '#44ff44' : '#ff4444';
+        if (scriptActive) {
+            startAutoScroll();
+        } else {
+            stopAutoScroll();
+        }
+    }
+
+    function toggleAudioOnly() {
+        audioOnly = !audioOnly;
+        const button = document.querySelector('#instagram-control-panel button:nth-child(2)');
+        button.innerHTML = `🔊 Audio-Only: ${audioOnly ? 'ON' : 'OFF'}`;
+        button.style.backgroundColor = audioOnly ? '#44ff44' : '#ff4444';
+        if (audioOnly) {
+            applyAudioOnlyStyle();
+        } else {
+            restoreOriginalStyle();
+        }
+    }
+
+    function toggleAutoLike() {
+        autoLike = !autoLike;
+        const button = document.querySelector('#instagram-control-panel button:nth-child(3)');
+        button.innerHTML = `❤️ Auto-Like: ${autoLike ? 'ON' : 'OFF'}`;
+        button.style.backgroundColor = autoLike ? '#44ff44' : '#ff4444';
+    }
+
+    function toggleMinimalisticMode() {
+        minimalisticMode = !minimalisticMode;
+        const button = document.querySelector('#instagram-control-panel button:nth-child(4)');
+        button.innerHTML = `🔄 Minimalistic Mode: ${minimalisticMode ? 'ON' : 'OFF'}`;
+        button.style.backgroundColor = minimalisticMode ? '#44ff44' : '#ffcc00';
+        if (minimalisticMode) {
+            applyMinimalisticStyle();
+        } else {
+            restoreOriginalStyle();
+        }
+    }
+
+    function isPostCentered(element) {
+        const rect = element.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const elementCenter = rect.top + rect.height / 2;
+        const viewportCenter = viewportHeight / 2;
+        return Math.abs(elementCenter - viewportCenter) < (viewportHeight * 0.2); // 20% tolerance
+    }
+
+    function applyAudioOnlyStyle() {
+        const posts = document.querySelectorAll('article');
+        posts.forEach(post => {
+            const mediaElements = post.querySelectorAll('video, img');
+            const hasAudio = post.querySelector('video');
+
+            mediaElements.forEach(media => {
+                if (media.tagName.toLowerCase() === 'video') {
+                    // Hide video
+                    media.style.visibility = 'hidden';
+                    media.style.height = '50px'; // Optional height adjustment
+
+                    // Only play audio if post is centered
+                    if (isPostCentered(post)) {
+                        media.muted = false;
+                        media.play();
+                        updateAudioIndicator(post, true); // Update indicator to show 🔊
+                        if (autoLike) {
+                            likeCurrentPost(post); // Like the post if audio is playing
+                        }
+                    } else {
+                        media.muted = true;
+                        media.pause();
+                        updateAudioIndicator(post, false); // Update indicator to show 🔈
+                    }
+                } else if (media.tagName.toLowerCase() === 'img') {
+                    media.style.display = 'none'; // Hide images
+                }
+            });
+        });
+    }
+
+    function updateAudioIndicator(post, isPlaying) {
+        let indicator = post.querySelector('.audio-indicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.className = 'audio-indicator';
+            indicator.style.cssText = `
+                width: 100%;
+                height: 50px;
+                background: linear-gradient(45deg, #1a1a1a, #333);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 24px;
+                transition: all 0.3s ease;
+            `;
+            post.appendChild(indicator);
+        }
+        indicator.innerHTML = isPlaying ? '🔊' : '🔈'; // Change indicator based on audio state
+    }
+
+    function restoreOriginalStyle() {
+        // Restore text colors to original
+        const allTextElements = document.querySelectorAll('*');
+        allTextElements.forEach(el => {
+            el.style.color = '';
+        });
+
+        // Restore visibility of media
+        const allMedia = document.querySelectorAll('img, video');
+        allMedia.forEach(media => {
+            media.style.display = '';
+            media.style.visibility = '';
+            media.style.height = '';
+        });
+
+        // Remove audio indicators
+        const indicators = document.querySelectorAll('.audio-indicator');
+        indicators.forEach(indicator => indicator.remove());
+
+        // Reset audio state
+        const videos = document.querySelectorAll('video');
+        videos.forEach(video => {
+            video.muted = true;
+            video.pause();
+        });
+    }
+
+    function applyMinimalisticStyle() {
+        const allTextElements = document.querySelectorAll('*');
+        allTextElements.forEach(el => {
+            const computedStyle = getComputedStyle(el);
+            if (computedStyle.color) {
+                el.style.color = 'black';
+            }
+        });
+
+        const allMedia = document.querySelectorAll('img, video');
+        allMedia.forEach(media => {
+            media.style.display = 'none'; // Hide all images and videos
+        });
+    }
+
+    function likeCurrentPost(post) {
+        const video = post.querySelector('video');
+        const hasImage = post.querySelector('img');
+        if (video && !video.paused) {
+            // Try to like the post if it has audio playing
+            const likeButton = post.querySelector('svg[aria-label="Like"]');
+            if (likeButton) {
+                const clickableButton = likeButton.closest('button');
+                if (clickableButton && !clickableButton.classList.contains('liked')) {
+                    clickableButton.click();
+                }
+            }
+        } else if (hasImage) {
+            // Handle liking posts with images if needed (optional)
+            // Uncomment the following lines if you want to like image posts as well
+            // const likeButton = post.querySelector('svg[aria-label="Like"]');
+            // if (likeButton) {
+            //     const clickableButton = likeButton.closest('button');
+            //     if (clickableButton && !clickableButton.classList.contains('liked')) {
+            //         clickableButton.click();
+            //     }
+            // }
+        }
+    }
+
+    function startAutoScroll() {
+        if (checkInterval) return;
+        checkInterval = setInterval(() => {
+            const currentPost = getCurrentPost();
+            if (scriptActive && currentPost) {
+                const video = currentPost.querySelector('video');
+                const hasImage = currentPost.querySelector('img');
+                if (autoLike && video && !video.paused) {
+                    likeCurrentPost(currentPost); // Like the post if audio is playing
+                }
+                if (audioOnly) {
+                    applyAudioOnlyStyle();
+                }
+                scrollToNextPost();
+            }
+        }, 3000); // Change to desired scroll interval
+    }
+
+    function stopAutoScroll() {
+        clearInterval(checkInterval);
+        checkInterval = null;
+    }
+
+    function getCurrentPost() {
+        const posts = document.querySelectorAll('article');
+        for (let post of posts) {
+            if (isPostCentered(post)) {
+                return post;
+            }
+        }
+        return null;
+    }
+
+    function scrollToNextPost() {
+        const posts = document.querySelectorAll('article');
+        const currentPost = getCurrentPost();
+        if (currentPost) {
+            const nextPost = Array.from(posts).find(post => post !== currentPost);
+            if (nextPost) {
+                nextPost.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }
+
+    // Apply styles and functionalities when the page loads and on scroll
+    window.addEventListener('load', () => {
+        applyMinimalisticStyle();
+    });
+    window.addEventListener('scroll', () => {
+        if (minimalisticMode) {
+            applyMinimalisticStyle();
+            if (audioOnly) {
+                applyAudioOnlyStyle();
+            }
+        }
+    });
+})();
