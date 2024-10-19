@@ -15,7 +15,7 @@
     function replaceLoadingGif() {
         const images = document.querySelectorAll('img[src*="loading.gif"]');
         images.forEach(img => {
-            img.src = 'https://media.tenor.com/V3JfC1eghysAAAAi/pepe-evil-plan-evil-plan.gif';
+            img.src = 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/pepe-evil-plan-evil-plan.gif';
         });
     }
 
