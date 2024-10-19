@@ -11,6 +11,14 @@
 (function() {
     'use strict';
 
+    // Replace all instances of the loading GIF
+    function replaceLoadingGif() {
+        const images = document.querySelectorAll('img[src*="loading.gif"]');
+        images.forEach(img => {
+            img.src = 'https://media.tenor.com/V3JfC1eghysAAAAi/pepe-evil-plan-evil-plan.gif';
+        });
+    }
+
     // Function to wait for an element to be present in the DOM
     function waitForElement(selector) {
         return new Promise(resolve => {
@@ -120,6 +128,21 @@
     // Main async function to handle the automation
     async function automate() {
         try {
+            // Replace loading GIF on page load
+            replaceLoadingGif();
+
+            // Set up observer for dynamically added loading GIFs
+            const observer = new MutationObserver((mutations) => {
+                replaceLoadingGif();
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['src']
+            });
+
             // Wait for and click Location wise radio button
             const locationRadio = await waitForElement('#p_type3');
             locationRadio.click();
