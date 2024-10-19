@@ -1,0 +1,195 @@
+// ==UserScript==
+// @name         Case Latest Date Finder
+// @namespace    http://tampermonkey.net/
+// @version      1.4
+// @description  Find latest date in specific case detail sections
+// @match        http://10.145.22.11:8888/enq_caseno.orcl*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Define the specific sections we want to search
+    const RELEVANT_SECTIONS = [
+        'Branch - Dealing Code - IC Recv Dt',
+        'DC to Branch Detail With Remarks',
+        'RKJ Details',
+        'File Tracking Status'
+    ];
+
+    const MONTHS = {
+        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'MAY': 4, 'JUN': 5,
+        'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
+    };
+
+    function parseCustomDate(dateStr) {
+        // Remove any parentheses and surrounding whitespace
+        dateStr = dateStr.replace(/[\(\)]/g, '').trim();
+
+        // Match patterns:
+        // DD-MMM-YYYY (16-SEP-2022)
+        // DD/MM/YYYY (16/09/2022)
+        const patterns = [
+            {
+                regex: /(\d{1,2})[-\/]([A-Z]{3})[-\/](\d{4})/,
+                parse: (match) => new Date(
+                    parseInt(match[3]), // year
+                    MONTHS[match[2].toUpperCase()], // month
+                    parseInt(match[1]) // day
+                )
+            },
+            {
+                regex: /(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/,
+                parse: (match) => new Date(
+                    parseInt(match[3]), // year
+                    parseInt(match[2]) - 1, // month (0-based)
+                    parseInt(match[1]) // day
+                )
+            }
+        ];
+
+        for (const pattern of patterns) {
+            const match = dateStr.match(pattern.regex);
+            if (match) {
+                try {
+                    const date = pattern.parse(match);
+                    if (!isNaN(date.getTime())) {
+                        return date;
+                    }
+                } catch (e) {
+                    console.error('Error parsing date:', dateStr, e);
+                }
+            }
+        }
+        return null;
+    }
+
+    function extractDates(text, sectionName) {
+        const datePatterns = [
+            /\b(\d{1,2})[-\/]([A-Z]{3})[-\/](\d{4})\b/g,  // DD-MMM-YYYY
+            /\b(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})\b/g,   // DD-MM-YYYY or DD/MM/YYYY
+        ];
+
+        const dates = [];
+        for (const pattern of datePatterns) {
+            let match;
+            while ((match = pattern.exec(text)) !== null) {
+                const parsedDate = parseCustomDate(match[0]);
+                if (parsedDate) {
+                    dates.push({
+                        date: parsedDate,
+                        original: match[0],
+                        section: sectionName,
+                        context: text.trim()
+                    });
+                }
+            }
+        }
+        return dates;
+    }
+
+    function findLatestDate() {
+        setTimeout(() => {
+            const allDates = [];
+
+            // Get all table rows
+            const rows = document.getElementsByTagName('tr');
+
+            for (const row of rows) {
+                const cells = row.cells;
+                if (cells.length >= 2) {
+                    const headerCell = cells[0];
+                    const contentCell = cells[1];
+
+                    // Check if this row is one of our relevant sections
+                    const sectionName = headerCell.textContent.trim();
+                    if (RELEVANT_SECTIONS.some(section => sectionName.includes(section))) {
+                        const dates = extractDates(contentCell.textContent, sectionName);
+                        allDates.push(...dates);
+                    }
+                }
+            }
+
+            if (allDates.length === 0) {
+                showResult('No dates found in specified sections', '', '');
+                return;
+            }
+
+            // Find the latest date
+            const latestDateInfo = allDates.reduce((latest, current) =>
+                current.date > latest.date ? current : latest
+            );
+
+            showResult(
+                formatDate(latestDateInfo.date),
+                latestDateInfo.section,
+                latestDateInfo.context
+            );
+        }, 1000);
+    }
+
+    function formatDate(date) {
+        const day = date.getDate().toString().padStart(2, '0');
+        const monthNames = Object.keys(MONTHS);
+        const month = monthNames[date.getMonth()];
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+    }
+
+    function showResult(date, section, context) {
+        // Remove existing result div if present
+        const existingDiv = document.getElementById('latest-date-result');
+        if (existingDiv) {
+            existingDiv.remove();
+        }
+
+        // Create new result div
+        const resultDiv = document.createElement('div');
+        resultDiv.id = 'latest-date-result';
+        Object.assign(resultDiv.style, {
+            position: 'fixed',
+            top: '10px',
+            left: '10px',
+            padding: '15px',
+            backgroundColor: '#ffeb3b',
+            border: '2px solid #ffc107',
+            borderRadius: '5px',
+            zIndex: '9999',
+            maxWidth: '400px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+            fontSize: '14px'
+        });
+
+        resultDiv.innerHTML = `
+            <div style="margin-bottom: 10px;">
+                <strong>Latest Date:</strong> ${date}
+            </div>
+            ${section ? `
+            <div style="margin-bottom: 10px;">
+                <strong>Found in Section:</strong> ${section}
+            </div>` : ''}
+            ${context ? `
+            <div>
+                <strong>Context:</strong><br>
+                <div style="margin-top: 5px; max-height: 100px; overflow-y: auto;
+                            background-color: #fff; padding: 5px; border-radius: 3px;">
+                    ${context}
+                </div>
+            </div>` : ''}
+            <div style="position: absolute; top: 5px; right: 5px; cursor: pointer;
+                        background-color: #fff; border-radius: 50%; width: 20px; height: 20px;
+                        display: flex; align-items: center; justify-content: center;"
+                 onclick="this.parentElement.remove()">✖</div>
+        `;
+
+        document.body.appendChild(resultDiv);
+    }
+
+    // Run the script after page loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', findLatestDate);
+    } else {
+        findLatestDate();
+    }
+})();
