@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         High Court Date Picker with Auto-Submit, Auto-fill and Batch Tracker
 // @namespace    http://tampermonkey.net/
-// @version      1.3
-// @description  Complete solution with date picker, auto-fill, and largest CJA batch display
+// @version      1.4
+// @description  Complete solution with date picker, auto-fill, batch tracker and custom image/gif replacement
 // @match        *://10.145.22.11:8888/weed_catalogue.php*
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
@@ -48,6 +48,16 @@
                 fontWeight: 'bold',
                 border: '1px solid #c8e6c9'
             }
+        },
+        IMAGES: {
+            NIC_IMAGE: {
+                original: 'nic.jpg',
+                replacement: 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/mod.jpg'
+            },
+            LOADING_GIF: {
+                original: 'loading.gif',
+                replacement: 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/pepe-evil-plan-evil-plan.gif'
+            }
         }
     };
 
@@ -60,18 +70,39 @@
         selectedCount: 0
     };
 
-    // Image replacement function
-    function replaceNICImage() {
+    // Image and GIF replacement function
+    function replaceImages() {
         const images = document.getElementsByTagName('img');
         for (let img of images) {
-            if (img.src.includes('nic.jpg')) {
-                img.src = 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/mod.jpg'; // Replace with your image URL
+            // Replace NIC image
+            if (img.src.includes(CONFIG.IMAGES.NIC_IMAGE.original)) {
+                img.src = CONFIG.IMAGES.NIC_IMAGE.replacement;
                 img.style.cursor = 'pointer';
                 img.addEventListener('click', () => {
                     window.open('http://10.145.22.11:8888/men.orcl', '_blank');
                 });
             }
+            // Replace loading GIF
+            if (img.src.includes(CONFIG.IMAGES.LOADING_GIF.original)) {
+                img.src = CONFIG.IMAGES.LOADING_GIF.replacement;
+            }
         }
+    }
+
+    // Add observer for dynamic image replacement
+    function observeImageChanges() {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList') {
+                    replaceImages();
+                }
+            });
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
     }
 
     // Batch tracking functions
@@ -306,7 +337,8 @@
         document.body.appendChild(counter);
 
         // Add all main elements
-        replaceNICImage();
+        replaceImages();
+        observeImageChanges();
         addDatePicker();
         document.body.appendChild(createHeartButton());
         updateBatchDisplay();
