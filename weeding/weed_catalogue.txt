@@ -1,0 +1,347 @@
+// ==UserScript==
+// @name         High Court Date Picker with Auto-Submit, Auto-fill and Batch Tracker
+// @namespace    http://tampermonkey.net/
+// @version      1.3
+// @description  Complete solution with date picker, auto-fill, and largest CJA batch display
+// @match        *://10.145.22.11:8888/weed_catalogue.php*
+// @grant        GM_xmlhttpRequest
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Configuration object
+    const CONFIG = {
+        HEART: {
+            ACTIVE: {
+                color: '#2ecc71',
+                symbol: '✔️'
+            },
+            INACTIVE: {
+                color: '#e74c3c',
+                symbol: '❌'
+            },
+            style: {
+                fontSize: '30px',
+                cursor: 'pointer',
+                position: 'fixed',
+                bottom: '-10px',
+                left: '10px',
+                zIndex: '9999',
+                transition: 'all 0.3s ease',
+                textShadow: '2px 2px 4px rgba(0,0,0,0.2)',
+                padding: '10px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                textAlign: 'center'
+            }
+        },
+        BATCH_DISPLAY: {
+            style: {
+                display: 'inline-block',
+                marginLeft: '20px',
+                padding: '5px 15px',
+                background: '#e8f5e9',
+                color: '#2e7d32',
+                borderRadius: '4px',
+                fontWeight: 'bold',
+                border: '1px solid #c8e6c9'
+            }
+        }
+    };
+
+    // State management
+    const state = {
+        batchNo: '',
+        rackNo: '',
+        shelfNo: '',
+        isDataLoaded: false,
+        selectedCount: 0
+    };
+
+    // Image replacement function
+    function replaceNICImage() {
+        const images = document.getElementsByTagName('img');
+        for (let img of images) {
+            if (img.src.includes('nic.jpg')) {
+                img.src = 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/mod.jpg'; // Replace with your image URL
+                img.style.cursor = 'pointer';
+                img.addEventListener('click', () => {
+                    window.open('http://10.145.22.11:8888/men.orcl', '_blank');
+                });
+            }
+        }
+    }
+
+    // Batch tracking functions
+    function findLargestCJABatch() {
+        let maxBatch = 0;
+        const rows = document.querySelectorAll('tr');
+
+        rows.forEach(row => {
+            const locationSelect = row.querySelector('select');
+            if (locationSelect) {
+                const selectedOption = locationSelect.options[locationSelect.selectedIndex];
+                if (selectedOption && selectedOption.text.trim().toUpperCase() === 'CJA') {
+                    const batchInput = row.querySelector('input[type="text"]');
+                    if (batchInput && batchInput.value) {
+                        const batchNum = parseInt(batchInput.value);
+                        if (!isNaN(batchNum) && batchNum > maxBatch) {
+                            maxBatch = batchNum;
+                        }
+                    }
+                }
+            }
+        });
+
+        return maxBatch;
+    }
+
+    function updateBatchDisplay() {
+        const largestBatch = findLargestCJABatch();
+
+        let display = document.getElementById('maxBatchDisplay');
+        if (!display) {
+            display = document.createElement('div');
+            display.id = 'maxBatchDisplay';
+            Object.assign(display.style, CONFIG.BATCH_DISPLAY.style);
+
+            const titleElement = document.querySelector('h2, h1, .title') || document.querySelector('body');
+            if (titleElement) {
+                titleElement.insertAdjacentElement('afterbegin', display);
+            }
+        }
+
+        display.textContent = `Largest CJA Batch: ${largestBatch}`;
+    }
+
+    // Date picker functions
+    function addDatePicker() {
+        const dateButton = document.createElement('button');
+        dateButton.innerHTML = '📅';
+        dateButton.style.position = 'fixed';
+        dateButton.style.bottom = '90px';
+        dateButton.style.left = '10px';
+        dateButton.style.zIndex = '9999';
+        dateButton.style.padding = '8px';
+        dateButton.style.borderRadius = '4px';
+        dateButton.style.background = 'white';
+        dateButton.style.border = '1px solid #ddd';
+        dateButton.style.cursor = 'pointer';
+        dateButton.onclick = toggleDatePicker;
+        document.body.appendChild(dateButton);
+    }
+
+    function toggleDatePicker() {
+        const existingPicker = document.getElementById('customDatePicker');
+        if (existingPicker) {
+            existingPicker.remove();
+        } else {
+            createDatePicker();
+        }
+    }
+
+    function createDatePicker() {
+        const picker = document.createElement('input');
+        picker.type = 'date';
+        picker.id = 'customDatePicker';
+        picker.style.position = 'fixed';
+        picker.style.bottom = '130px';
+        picker.style.left = '10px';
+        picker.style.zIndex = '10000';
+        picker.onchange = updateDates;
+        document.body.appendChild(picker);
+    }
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
+
+    function updateDates(event) {
+        const formattedDate = formatDate(event.target.value);
+        const dateFromInput = document.querySelector('input[name="f_date"]');
+        const dateToInput = document.querySelector('input[name="t_date"]');
+
+        if (dateFromInput && dateToInput) {
+            dateFromInput.value = formattedDate;
+            dateToInput.value = formattedDate;
+
+            triggerEvent(dateFromInput, 'change');
+            triggerEvent(dateToInput, 'change');
+            clickSubmitButton();
+        }
+    }
+
+    function triggerEvent(element, eventType) {
+        const event = new Event(eventType, { bubbles: true });
+        element.dispatchEvent(event);
+    }
+
+    function clickSubmitButton() {
+        const submitButton = document.querySelector('.btn.btn-success');
+        if (submitButton) {
+            submitButton.click();
+        }
+    }
+
+    // Auto-fill functions
+    function createHeartButton() {
+        const heartButton = document.createElement('span');
+        Object.assign(heartButton.style, CONFIG.HEART.style);
+        updateHeartButtonState(heartButton);
+
+        heartButton.addEventListener('mouseover', () => {
+            heartButton.style.transform = 'scale(1.1)';
+        });
+
+        heartButton.addEventListener('mouseout', () => {
+            heartButton.style.transform = 'scale(1)';
+        });
+
+        heartButton.addEventListener('click', async () => {
+            if (await promptForValues()) {
+                const checkedBoxes = document.querySelectorAll('input[type="checkbox"]:checked');
+                checkedBoxes.forEach(checkbox => fillRowValues(checkbox.closest('tr')));
+            }
+        });
+
+        return heartButton;
+    }
+
+    function updateHeartButtonState(heartButton) {
+        const currentState = state.isDataLoaded ? CONFIG.HEART.ACTIVE : CONFIG.HEART.INACTIVE;
+        heartButton.innerHTML = currentState.symbol;
+        heartButton.style.color = currentState.color;
+    }
+
+    function fillRowValues(row) {
+        if (!row) return;
+
+        const inputs = row.querySelectorAll('input[type="text"]');
+        const values = [state.batchNo, state.rackNo, state.shelfNo];
+
+        inputs.forEach((input, index) => {
+            if (input && values[index]) {
+                input.value = values[index];
+                triggerEvent(input, 'change');
+            }
+        });
+
+        const locationDropdown = row.querySelector('select');
+        if (locationDropdown) {
+            const cjaOption = Array.from(locationDropdown.options)
+                .find(option => option.text.trim().toUpperCase() === 'CJA');
+
+            if (cjaOption) {
+                locationDropdown.value = cjaOption.value;
+                triggerEvent(locationDropdown, 'change');
+            }
+        }
+
+        updateBatchDisplay();
+    }
+
+    async function promptForValues() {
+        const prompts = [
+            { field: 'batchNo', message: 'Please enter Batch number:' },
+            { field: 'rackNo', message: 'Please enter Rack number:' },
+            { field: 'shelfNo', message: 'Please enter Shelf number:' }
+        ];
+
+        for (const prompt of prompts) {
+            const value = window.prompt(prompt.message);
+            if (value === null) return false;
+            state[prompt.field] = value;
+        }
+
+        state.isDataLoaded = true;
+        const heartButton = document.querySelector('span[style*="cursor: pointer"]');
+        if (heartButton) {
+            updateHeartButtonState(heartButton);
+        }
+        return true;
+    }
+
+    // Counter function
+    function updateCounter() {
+        state.selectedCount = document.querySelectorAll('input[type="checkbox"]:checked').length;
+        const counter = document.getElementById('selectionCounter');
+        if (counter) {
+            counter.textContent = `Selected: ${state.selectedCount}`;
+            counter.style.backgroundColor = state.selectedCount > 0 ? '#e8f5e9' : 'rgba(255,255,255,0.9)';
+            counter.style.color = state.selectedCount > 0 ? '#2e7d32' : '#34495e';
+        }
+    }
+
+    // Initialize everything
+    function initialize() {
+        // Add styles
+        const style = document.createElement('style');
+        style.textContent = `
+            .selection-counter {
+                position: fixed;
+                bottom: 50px;
+                left: 10px;
+                z-index: 9999;
+                padding: 5px 10px;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-weight: bold;
+                min-width: 80px;
+                text-align: center;
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Create counter
+        const counter = document.createElement('div');
+        counter.id = 'selectionCounter';
+        counter.className = 'selection-counter';
+        document.body.appendChild(counter);
+
+        // Add all main elements
+        replaceNICImage();
+        addDatePicker();
+        document.body.appendChild(createHeartButton());
+        updateBatchDisplay();
+        updateCounter();
+
+        // Add event listeners
+        document.addEventListener('change', (e) => {
+            if (e.target.type === 'checkbox') {
+                updateCounter();
+                if (state.isDataLoaded && e.target.checked) {
+                    fillRowValues(e.target.closest('tr'));
+                }
+            }
+            if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') {
+                updateBatchDisplay();
+            }
+        });
+
+        // Add observer for dynamic updates
+        const observer = new MutationObserver(() => {
+            updateBatchDisplay();
+        });
+
+        observer.observe(document.body, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ['value']
+        });
+    }
+
+    // Run initialization
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialize);
+    } else {
+        initialize();
+    }
+})();
