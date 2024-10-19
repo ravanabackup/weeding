@@ -1,0 +1,171 @@
+// ==UserScript==
+// @name         Weeding Catalogue Report Complete Automator
+// @namespace    http://tampermonkey.net/
+// @version      0.4
+// @description  Automates all selections in weeding catalogue report page
+// @author       Your name
+// @match        http://10.145.22.11:8888/report_catalogue.php
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Function to wait for an element to be present in the DOM
+    function waitForElement(selector) {
+        return new Promise(resolve => {
+            if (document.querySelector(selector)) {
+                return resolve(document.querySelector(selector));
+            }
+
+            const observer = new MutationObserver(mutations => {
+                if (document.querySelector(selector)) {
+                    observer.disconnect();
+                    resolve(document.querySelector(selector));
+                }
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        });
+    }
+
+    // Generic function to select the highest number from a dropdown
+    function selectHighestNumber(selectElement) {
+        if (!selectElement) return;
+
+        const options = Array.from(selectElement.options);
+        if (options.length <= 1) return; // Only has default option
+
+        // Filter out the default option and convert values to numbers
+        const numbers = options
+            .slice(1) // Skip the first default option
+            .map(opt => parseInt(opt.value))
+            .filter(num => !isNaN(num));
+
+        if (numbers.length > 0) {
+            const highestNumber = Math.max(...numbers);
+            selectElement.value = highestNumber;
+            // Trigger the onchange event
+            const event = new Event('change');
+            selectElement.dispatchEvent(event);
+            return highestNumber;
+        }
+        return null;
+    }
+
+    // Function to wait for options to be populated in a select element
+    function waitForOptions(selectElement) {
+        return new Promise(resolve => {
+            if (selectElement.options.length > 1) {
+                return resolve();
+            }
+
+            const observer = new MutationObserver(mutations => {
+                if (selectElement.options.length > 1) {
+                    observer.disconnect();
+                    resolve();
+                }
+            });
+
+            observer.observe(selectElement, {
+                childList: true,
+                subtree: true
+            });
+        });
+    }
+
+    // Function to handle the sequence of selections
+    async function handleSelections() {
+        try {
+            // Step 1: Select CJA in location dropdown
+            const locationSelect = document.getElementById('location');
+            locationSelect.value = 'CJA';
+            locationSelect.dispatchEvent(new Event('change'));
+
+            // Step 2: Wait for and select highest batch number
+            const batchSelect = document.getElementById('batch_number');
+            await waitForOptions(batchSelect);
+            await new Promise(resolve => setTimeout(resolve, 500)); // Small delay for stability
+            const selectedBatch = selectHighestNumber(batchSelect);
+
+            if (selectedBatch) {
+                // Step 3: Wait for and select highest rack number
+                const rackSelect = document.getElementById('rack_number');
+                await waitForOptions(rackSelect);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const selectedRack = selectHighestNumber(rackSelect);
+
+                if (selectedRack) {
+                    // Step 4: Wait for and select highest shelf number
+                    const shelfSelect = document.getElementById('shelf_number');
+                    await waitForOptions(shelfSelect);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    selectHighestNumber(shelfSelect);
+
+                    // Step 5: Click the Submit button
+                    const submitButton = document.querySelector('button[name="btn_diary"]');
+                    if (submitButton) {
+                        submitButton.click();
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error in selection sequence:', error);
+        }
+    }
+
+    // Main async function to handle the automation
+    async function automate() {
+        try {
+            // Wait for and click Location wise radio button
+            const locationRadio = await waitForElement('#p_type3');
+            locationRadio.click();
+
+            // Wait for the location dropdown to be visible
+            await waitForElement('#location');
+
+            // Show the location_wise div and hide others
+            document.getElementById('location_wise').style.display = '';
+            document.getElementById('date_wise').style.display = 'none';
+            document.getElementById('case_wise').style.display = 'none';
+
+            // Start the selection sequence
+            await handleSelections();
+
+        } catch (error) {
+            console.error('Error in automation:', error);
+        }
+    }
+
+    // Function to add a manual trigger button
+    function addManualTriggerButton() {
+        const button = document.createElement('button');
+        button.textContent = 'Auto-Select Highest Numbers';
+        button.style.position = 'fixed';
+        button.style.top = '10px';
+        button.style.right = '10px';
+        button.style.zIndex = '9999';
+        button.style.backgroundColor = '#4CAF50';
+        button.style.color = 'white';
+        button.style.padding = '10px';
+        button.style.border = 'none';
+        button.style.borderRadius = '5px';
+        button.style.cursor = 'pointer';
+        button.onclick = handleSelections;
+        document.body.appendChild(button);
+    }
+
+    // Start automation when page is loaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            automate();
+            addManualTriggerButton();
+        });
+    } else {
+        automate();
+        addManualTriggerButton();
+    }
+})();
