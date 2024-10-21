@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         High Court Date Picker with Auto-Submit, Auto-fill, Batch Tracker and Notifications
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  Complete solution with date picker, auto-fill, batch tracker, notifications and custom image/gif replacement
 // @match        *://10.145.22.11:8888/weed_catalogue.php*
 // @grant        GM_xmlhttpRequest
@@ -76,7 +76,12 @@
         rackNo: '',
         shelfNo: '',
         isDataLoaded: false,
-        selectedCount: 0
+        selectedCount: 0,
+        lastNotification: {
+            message: '',
+            count: 0,
+            timestamp: 0
+        }
     };
 
     // Toast notification system
@@ -92,6 +97,26 @@
     }
 
     function showToast(message) {
+        const now = Date.now();
+
+        // If it's the same message within 5 seconds, update count instead of showing new toast
+        if (message === state.lastNotification.message &&
+            (now - state.lastNotification.timestamp) < 5000) {
+            state.lastNotification.count++;
+            const existingToast = document.querySelector(`[data-message="${message}"]`);
+            if (existingToast) {
+                const countSpan = existingToast.querySelector('.notification-count');
+                if (countSpan) {
+                    countSpan.textContent = `(${state.lastNotification.count})`;
+                    return;
+                }
+            }
+        } else {
+            state.lastNotification.message = message;
+            state.lastNotification.count = 1;
+            state.lastNotification.timestamp = now;
+        }
+
         const container = createToastContainer();
 
         const toast = document.createElement('div');
@@ -111,10 +136,12 @@
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
         });
 
-        // Add icon and message
+        toast.setAttribute('data-message', message);
+
         toast.innerHTML = `
             <span style="margin-right: 8px;">🔔</span>
             <span>${message}</span>
+            <span class="notification-count">${state.lastNotification.count > 1 ? `(${state.lastNotification.count})` : ''}</span>
         `;
 
         container.appendChild(toast);
@@ -321,7 +348,6 @@
 
         heartButton.addEventListener('click', async () => {
             if (await promptForValues()) {
-                showToast('Values loaded successfully');
                 const checkedBoxes = document.querySelectorAll('input[type="checkbox"]:checked');
                 checkedBoxes.forEach(checkbox => fillRowValues(checkbox.closest('tr')));
             }
@@ -378,15 +404,31 @@
             state[prompt.field] = value;
         }
 
-        state.isDataLoaded = true;
+        // Check if all values are '0' or blank
+        const isReset = prompts.every(prompt =>
+            state[prompt.field] === '0' || state[prompt.field].trim() === ''
+        );
+
+        if (isReset) {
+            // Reset state
+            state.batchNo = '';
+            state.rackNo = '';
+            state.shelfNo = '';
+            state.isDataLoaded = false;
+            showToast('Values have been reset');
+        } else {
+            state.isDataLoaded = true;
+            showToast('Values loaded successfully');
+        }
+
         const heartButton = document.querySelector('span[style*="cursor: pointer"]');
         if (heartButton) {
             updateHeartButtonState(heartButton);
         }
-        return true;
+        return !isReset; // Return false if reset, true if valid values entered
     }
 
-    // Counter function
+   // Counter function
     function updateCounter() {
         const prevCount = state.selectedCount;
         state.selectedCount = document.querySelectorAll('input[type="checkbox"]:checked').length;
@@ -435,7 +477,7 @@
         observeImageChanges();
         addDatePicker();
 
-// Add heart button
+        // Add heart button
         document.body.appendChild(createHeartButton());
 
         // Initial updates
