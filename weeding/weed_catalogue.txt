@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         High Court Date Picker with Auto-Submit, Auto-fill, Batch Tracker and Notifications
 // @namespace    http://tampermonkey.net/
-// @version      1.6
-// @description  Complete solution with date picker, auto-fill, batch tracker, notifications and custom image/gif replacement
+// @version      1.7
+// @description  Complete solution with date picker, auto-fill, batch tracker, notifications and random gif replacement
 // @match        *://10.145.22.11:8888/weed_catalogue.php*
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
@@ -54,10 +54,11 @@
                 original: 'nic.jpg',
                 replacement: 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/mod.jpg'
             },
-            LOADING_GIF: {
-                original: 'loading.gif',
-                replacement: 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/pepe-evil-plan-evil-plan.gif'
-            }
+            LOADING_GIFS: [
+                'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/pepe-the-frog-sad.gif',
+                'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/pepe-why-under256kb.gif',
+                'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/peepo-cry.gif'
+            ]
         },
         TOAST: {
             CONTAINER_ID: 'toast-container',
@@ -84,6 +85,13 @@
         }
     };
 
+    // Get random GIF URL
+    function getRandomGif() {
+        const gifs = CONFIG.IMAGES.LOADING_GIFS;
+        const randomIndex = Math.floor(Math.random() * gifs.length);
+        return gifs[randomIndex];
+    }
+
     // Toast notification system
     function createToastContainer() {
         let container = document.getElementById(CONFIG.TOAST.CONTAINER_ID);
@@ -99,7 +107,6 @@
     function showToast(message) {
         const now = Date.now();
 
-        // If it's the same message within 5 seconds, update count instead of showing new toast
         if (message === state.lastNotification.message &&
             (now - state.lastNotification.timestamp) < 5000) {
             state.lastNotification.count++;
@@ -146,7 +153,6 @@
 
         container.appendChild(toast);
 
-        // Add animation styles if not already added
         if (!document.getElementById('toast-animations')) {
             const style = document.createElement('style');
             style.id = 'toast-animations';
@@ -175,7 +181,6 @@
             document.head.appendChild(style);
         }
 
-        // Remove toast after delay
         setTimeout(() => {
             toast.style.animation = 'slideOut 0.3s ease-in';
             toast.addEventListener('animationend', () => {
@@ -197,8 +202,8 @@
                     window.open('http://10.145.22.11:8888/men.orcl', '_blank');
                 });
             }
-            if (img.src.includes(CONFIG.IMAGES.LOADING_GIF.original)) {
-                img.src = CONFIG.IMAGES.LOADING_GIF.replacement;
+            if (img.src.includes('loading.gif')) {
+                img.src = getRandomGif();
             }
         }
     }
@@ -404,13 +409,11 @@
             state[prompt.field] = value;
         }
 
-        // Check if all values are '0' or blank
         const isReset = prompts.every(prompt =>
             state[prompt.field] === '0' || state[prompt.field].trim() === ''
         );
 
         if (isReset) {
-            // Reset state
             state.batchNo = '';
             state.rackNo = '';
             state.shelfNo = '';
@@ -425,10 +428,10 @@
         if (heartButton) {
             updateHeartButtonState(heartButton);
         }
-        return !isReset; // Return false if reset, true if valid values entered
+        return !isReset;
     }
 
-   // Counter function
+    // Counter function
     function updateCounter() {
         const prevCount = state.selectedCount;
         state.selectedCount = document.querySelectorAll('input[type="checkbox"]:checked').length;
