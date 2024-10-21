@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         High Court Date Picker with Auto-Submit, Auto-fill and Batch Tracker
+// @name         High Court Date Picker with Auto-Submit, Auto-fill, Batch Tracker and Notifications
 // @namespace    http://tampermonkey.net/
-// @version      1.4
-// @description  Complete solution with date picker, auto-fill, batch tracker and custom image/gif replacement
+// @version      1.5
+// @description  Complete solution with date picker, auto-fill, batch tracker, notifications and custom image/gif replacement
 // @match        *://10.145.22.11:8888/weed_catalogue.php*
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
@@ -58,6 +58,15 @@
                 original: 'loading.gif',
                 replacement: 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/pepe-evil-plan-evil-plan.gif'
             }
+        },
+        TOAST: {
+            CONTAINER_ID: 'toast-container',
+            style: {
+                position: 'fixed',
+                top: '1rem',
+                right: '1rem',
+                zIndex: '10000'
+            }
         }
     };
 
@@ -70,11 +79,90 @@
         selectedCount: 0
     };
 
+    // Toast notification system
+    function createToastContainer() {
+        let container = document.getElementById(CONFIG.TOAST.CONTAINER_ID);
+        if (!container) {
+            container = document.createElement('div');
+            container.id = CONFIG.TOAST.CONTAINER_ID;
+            Object.assign(container.style, CONFIG.TOAST.style);
+            document.body.appendChild(container);
+        }
+        return container;
+    }
+
+    function showToast(message) {
+        const container = createToastContainer();
+
+        const toast = document.createElement('div');
+        Object.assign(toast.style, {
+            backgroundColor: 'white',
+            padding: '12px 24px',
+            marginBottom: '10px',
+            borderRadius: '4px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+            border: '1px solid #e2e8f0',
+            animation: 'slideIn 0.3s ease-out',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: '#2d3748',
+            fontSize: '14px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        });
+
+        // Add icon and message
+        toast.innerHTML = `
+            <span style="margin-right: 8px;">🔔</span>
+            <span>${message}</span>
+        `;
+
+        container.appendChild(toast);
+
+        // Add animation styles if not already added
+        if (!document.getElementById('toast-animations')) {
+            const style = document.createElement('style');
+            style.id = 'toast-animations';
+            style.textContent = `
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                @keyframes slideOut {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Remove toast after delay
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease-in';
+            toast.addEventListener('animationend', () => {
+                if (container.contains(toast)) {
+                    container.removeChild(toast);
+                }
+            });
+        }, 5000);
+    }
+
     // Image and GIF replacement function
     function replaceImages() {
         const images = document.getElementsByTagName('img');
         for (let img of images) {
-            // Replace NIC image
             if (img.src.includes(CONFIG.IMAGES.NIC_IMAGE.original)) {
                 img.src = CONFIG.IMAGES.NIC_IMAGE.replacement;
                 img.style.cursor = 'pointer';
@@ -82,7 +170,6 @@
                     window.open('http://10.145.22.11:8888/men.orcl', '_blank');
                 });
             }
-            // Replace loading GIF
             if (img.src.includes(CONFIG.IMAGES.LOADING_GIF.original)) {
                 img.src = CONFIG.IMAGES.LOADING_GIF.replacement;
             }
@@ -131,19 +218,16 @@
 
     function updateBatchDisplay() {
         const largestBatch = findLargestCJABatch();
-
         let display = document.getElementById('maxBatchDisplay');
         if (!display) {
             display = document.createElement('div');
             display.id = 'maxBatchDisplay';
             Object.assign(display.style, CONFIG.BATCH_DISPLAY.style);
-
             const titleElement = document.querySelector('h2, h1, .title') || document.querySelector('body');
             if (titleElement) {
                 titleElement.insertAdjacentElement('afterbegin', display);
             }
         }
-
         display.textContent = `Largest CJA Batch: ${largestBatch}`;
     }
 
@@ -194,6 +278,7 @@
     }
 
     function updateDates(event) {
+        showToast('Updating dates...');
         const formattedDate = formatDate(event.target.value);
         const dateFromInput = document.querySelector('input[name="f_date"]');
         const dateToInput = document.querySelector('input[name="t_date"]');
@@ -236,6 +321,7 @@
 
         heartButton.addEventListener('click', async () => {
             if (await promptForValues()) {
+                showToast('Values loaded successfully');
                 const checkedBoxes = document.querySelectorAll('input[type="checkbox"]:checked');
                 checkedBoxes.forEach(checkbox => fillRowValues(checkbox.closest('tr')));
             }
@@ -252,6 +338,7 @@
 
     function fillRowValues(row) {
         if (!row) return;
+        showToast('Filling row values...');
 
         const inputs = row.querySelectorAll('input[type="text"]');
         const values = [state.batchNo, state.rackNo, state.shelfNo];
@@ -278,6 +365,7 @@
     }
 
     async function promptForValues() {
+        showToast('Please enter the required values');
         const prompts = [
             { field: 'batchNo', message: 'Please enter Batch number:' },
             { field: 'rackNo', message: 'Please enter Rack number:' },
@@ -300,7 +388,13 @@
 
     // Counter function
     function updateCounter() {
+        const prevCount = state.selectedCount;
         state.selectedCount = document.querySelectorAll('input[type="checkbox"]:checked').length;
+
+        if (prevCount !== state.selectedCount) {
+            showToast(`Selected items: ${state.selectedCount}`);
+        }
+
         const counter = document.getElementById('selectionCounter');
         if (counter) {
             counter.textContent = `Selected: ${state.selectedCount}`;
@@ -340,9 +434,16 @@
         replaceImages();
         observeImageChanges();
         addDatePicker();
+
+// Add heart button
         document.body.appendChild(createHeartButton());
+
+        // Initial updates
         updateBatchDisplay();
         updateCounter();
+
+        // Show welcome toast
+        showToast('Script initialized successfully! 👋');
 
         // Add event listeners
         document.addEventListener('change', (e) => {
