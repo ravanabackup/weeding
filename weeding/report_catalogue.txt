@@ -15,11 +15,11 @@
     function replaceFavicon() {
         const existingFavicon = document.querySelector("link[rel*='icon']");
         if (existingFavicon) {
-            existingFavicon.href = "https://www.w3schools.com/favicon.ico";
+            existingFavicon.href = "https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/rat.ico";
         } else {
             const newFavicon = document.createElement("link");
             newFavicon.rel = "icon";
-            newFavicon.href = "https://www.w3schools.com/favicon.ico";
+            newFavicon.href = "https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/rat.ico";
             document.head.appendChild(newFavicon);
         }
     }
@@ -85,7 +85,7 @@
         }, 2000);
     }
 
-    document.title = "🔴🔴🔴Sajin Report🔴🔴🔴";
+    document.title = "Sajin Report";
 
     // Observer for title changes
     const observer = new MutationObserver(function() {
