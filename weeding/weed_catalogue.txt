@@ -15,11 +15,11 @@
     function replaceFavicon() {
         const existingFavicon = document.querySelector("link[rel*='icon']");
         if (existingFavicon) {
-            existingFavicon.href = "https://www.w3schools.com/favicon.ico";
+            existingFavicon.href = "https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/cat.ico";
         } else {
             const newFavicon = document.createElement("link");
             newFavicon.rel = "icon";
-            newFavicon.href = "https://www.w3schools.com/favicon.ico";
+            newFavicon.href = "https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/cat.ico";
             document.head.appendChild(newFavicon);
         }
     }
@@ -27,7 +27,7 @@
     // Run favicon replacement on load
     replaceFavicon();
 
-    document.title = "🟢🟢🟢🟢Sajin Entry🟢🟢🟢🟢";
+    document.title = "Sajin Entry";
 
     // In case the title changes dynamically, we can observe it
     const observer = new MutationObserver(function() {
