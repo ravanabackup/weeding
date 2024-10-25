@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         High Court Date Picker with Auto-Submit, Auto-fill, Batch Tracker and Notifications
-// @namespace    http://tampermonkey.net/
-// @version      1.8
+// @namespace    Sajin M. Simon
+// @version      1.9
 // @description  Complete solution with date picker, auto-fill, batch tracker, notifications, random gif replacement and row highlighting
+// @author       Sajin M. Simon
 // @match        *://10.145.22.11:8888/weed_catalogue.php*
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
@@ -10,7 +11,23 @@
 (function() {
     'use strict';
 
-    document.title = "Sajin Entry";
+     // Replace favicon
+    function replaceFavicon() {
+        const existingFavicon = document.querySelector("link[rel*='icon']");
+        if (existingFavicon) {
+            existingFavicon.href = "https://www.w3schools.com/favicon.ico";
+        } else {
+            const newFavicon = document.createElement("link");
+            newFavicon.rel = "icon";
+            newFavicon.href = "https://www.w3schools.com/favicon.ico";
+            document.head.appendChild(newFavicon);
+        }
+    }
+
+    // Run favicon replacement on load
+    replaceFavicon();
+
+    document.title = "🟢🟢🟢🟢Sajin Entry🟢🟢🟢🟢";
 
     // In case the title changes dynamically, we can observe it
     const observer = new MutationObserver(function() {
