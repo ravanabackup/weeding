@@ -1,14 +1,29 @@
 // ==UserScript==
 // @name         High Court Date Picker with Auto-Submit, Auto-fill, Batch Tracker and Notifications
 // @namespace    http://tampermonkey.net/
-// @version      1.7
-// @description  Complete solution with date picker, auto-fill, batch tracker, notifications and random gif replacement
+// @version      1.8
+// @description  Complete solution with date picker, auto-fill, batch tracker, notifications, random gif replacement and row highlighting
 // @match        *://10.145.22.11:8888/weed_catalogue.php*
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
 (function() {
     'use strict';
+
+    document.title = "Sajin Entry";
+
+    // In case the title changes dynamically, we can observe it
+    const observer = new MutationObserver(function() {
+        if (document.title !== "Entry") {
+            document.title = "Entry";
+        }
+    });
+
+    observer.observe(document.querySelector('title'), {
+        subtree: true,
+        characterData: true,
+        childList: true
+    });
 
     // Configuration object
     const CONFIG = {
@@ -55,9 +70,9 @@
                 replacement: 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/mod.jpg'
             },
             LOADING_GIFS: [
-                'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/pepe-the-frog-sad.gif',
-                'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/pepe-why-under256kb.gif',
-                'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/peepo-cry.gif'
+                'https://media.tenor.com/IESk2X7FqlEAAAAj/windows-xp-loading.gif',
+                'https://media.tenor.com/IESk2X7FqlEAAAAj/windows-xp-loading.gif',
+                'https://media.tenor.com/IESk2X7FqlEAAAAj/windows-xp-loading.gif'
             ]
         },
         TOAST: {
@@ -67,6 +82,16 @@
                 top: '1rem',
                 right: '1rem',
                 zIndex: '10000'
+            }
+        },
+        ROW_HIGHLIGHT: {
+            CHECKED: {
+                backgroundColor: '#b5eeff',  // Light blue background
+                transition: 'background-color 0.3s ease'
+            },
+            UNCHECKED: {
+                backgroundColor: '',
+                transition: 'background-color 0.3s ease'
             }
         }
     };
@@ -84,6 +109,24 @@
             timestamp: 0
         }
     };
+
+    // Row highlighting function
+    function updateRowHighlight(checkbox) {
+        const row = checkbox.closest('tr');
+        if (!row) return;
+
+        if (checkbox.checked) {
+            Object.assign(row.style, CONFIG.ROW_HIGHLIGHT.CHECKED);
+        } else {
+            Object.assign(row.style, CONFIG.ROW_HIGHLIGHT.UNCHECKED);
+        }
+    }
+
+    // Update all existing checkboxes
+    function updateAllRowHighlights() {
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(updateRowHighlight);
+    }
 
     // Get random GIF URL
     function getRandomGif() {
@@ -191,7 +234,7 @@
         }, 5000);
     }
 
-    // Image and GIF replacement function
+// Image and GIF replacement function
     function replaceImages() {
         const images = document.getElementsByTagName('img');
         for (let img of images) {
@@ -486,6 +529,7 @@
         // Initial updates
         updateBatchDisplay();
         updateCounter();
+        updateAllRowHighlights();  // Initial highlight update
 
         // Show welcome toast
         showToast('Script initialized successfully! 👋');
@@ -494,6 +538,7 @@
         document.addEventListener('change', (e) => {
             if (e.target.type === 'checkbox') {
                 updateCounter();
+                updateRowHighlight(e.target);  // Update row highlight when checkbox changes
                 if (state.isDataLoaded && e.target.checked) {
                     fillRowValues(e.target.closest('tr'));
                 }
@@ -504,8 +549,19 @@
         });
 
         // Add observer for dynamic updates
-        const observer = new MutationObserver(() => {
+        const observer = new MutationObserver((mutations) => {
             updateBatchDisplay();
+            // Check if new checkboxes were added
+            mutations.forEach(mutation => {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === 1) { // Element node
+                            const checkboxes = node.querySelectorAll('input[type="checkbox"]');
+                            checkboxes.forEach(updateRowHighlight);
+                        }
+                    });
+                }
+            });
         });
 
         observer.observe(document.body, {
