@@ -1,15 +1,31 @@
 // ==UserScript==
 // @name         Weeding Catalogue Report Complete Automator
-// @namespace    http://tampermonkey.net/
-// @version      0.5
+// @namespace    Sajin M. Simon
+// @version      0.6
 // @description  Automates all selections in weeding catalogue report page with enhanced copy notification
-// @author       Your name
+// @author       Sajin M. Simon
 // @match        http://10.145.22.11:8888/report_catalogue.php
 // @grant        none
 // ==/UserScript==
 
 (function() {
     'use strict';
+
+     // Replace favicon
+    function replaceFavicon() {
+        const existingFavicon = document.querySelector("link[rel*='icon']");
+        if (existingFavicon) {
+            existingFavicon.href = "https://www.w3schools.com/favicon.ico";
+        } else {
+            const newFavicon = document.createElement("link");
+            newFavicon.rel = "icon";
+            newFavicon.href = "https://www.w3schools.com/favicon.ico";
+            document.head.appendChild(newFavicon);
+        }
+    }
+
+    // Run favicon replacement on load
+    replaceFavicon();
 
     // Add custom styles for the notification
     const style = document.createElement('style');
@@ -69,7 +85,7 @@
         }, 2000);
     }
 
-    document.title = "Sajin Report";
+    document.title = "🔴🔴🔴Sajin Report🔴🔴🔴";
 
     // Observer for title changes
     const observer = new MutationObserver(function() {
