@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Weeding Catalogue Report Complete Automator
 // @namespace    http://tampermonkey.net/
-// @version      0.4
-// @description  Automates all selections in weeding catalogue report page
+// @version      0.5
+// @description  Automates all selections in weeding catalogue report page with enhanced copy notification
 // @author       Your name
 // @match        http://10.145.22.11:8888/report_catalogue.php
 // @grant        none
@@ -11,7 +11,80 @@
 (function() {
     'use strict';
 
-    // Replace all instances of the loading GIF
+    // Add custom styles for the notification
+    const style = document.createElement('style');
+    style.textContent = `
+        .copy-notification {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #FF2400;
+            color: white;
+            padding: 16px;
+            border-radius: 4px;
+            z-index: 10000;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: none;
+            animation: slideIn 0.3s ease-in-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'copy-notification';
+    notification.textContent = 'Data copied to clipboard!';
+    document.body.appendChild(notification);
+
+    // Function to show notification
+    function showNotification() {
+        notification.style.display = 'block';
+        notification.style.animation = 'slideIn 0.3s ease-in-out';
+
+        setTimeout(() => {
+            notification.style.animation = 'fadeOut 0.3s ease-in-out';
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 300);
+        }, 2000);
+    }
+
+    document.title = "Sajin Report";
+
+    // Observer for title changes
+    const observer = new MutationObserver(function() {
+        if (document.title !== "Entry") {
+            document.title = "Entry";
+        }
+    });
+
+    observer.observe(document.querySelector('title'), {
+        subtree: true,
+        characterData: true,
+        childList: true
+    });
+
+    // Replace loading GIF
     function replaceLoadingGif() {
         const images = document.querySelectorAll('img[src*="loading.gif"]');
         images.forEach(img => {
@@ -19,7 +92,7 @@
         });
     }
 
-    // Function to wait for an element to be present in the DOM
+    // Wait for element function
     function waitForElement(selector) {
         return new Promise(resolve => {
             if (document.querySelector(selector)) {
@@ -40,31 +113,7 @@
         });
     }
 
-    // Generic function to select the highest number from a dropdown
-    function selectHighestNumber(selectElement) {
-        if (!selectElement) return;
-
-        const options = Array.from(selectElement.options);
-        if (options.length <= 1) return; // Only has default option
-
-        // Filter out the default option and convert values to numbers
-        const numbers = options
-            .slice(1) // Skip the first default option
-            .map(opt => parseInt(opt.value))
-            .filter(num => !isNaN(num));
-
-        if (numbers.length > 0) {
-            const highestNumber = Math.max(...numbers);
-            selectElement.value = highestNumber;
-            // Trigger the onchange event
-            const event = new Event('change');
-            selectElement.dispatchEvent(event);
-            return highestNumber;
-        }
-        return null;
-    }
-
-    // Function to wait for options to be populated in a select element
+    // Function to wait for options
     function waitForOptions(selectElement) {
         return new Promise(resolve => {
             if (selectElement.options.length > 1) {
@@ -85,35 +134,30 @@
         });
     }
 
-    // Function to handle the sequence of selections
+    // Handle selections function
     async function handleSelections() {
         try {
-            // Step 1: Select CJA in location dropdown
             const locationSelect = document.getElementById('location');
             locationSelect.value = 'CJA';
             locationSelect.dispatchEvent(new Event('change'));
 
-            // Step 2: Wait for and select highest batch number
             const batchSelect = document.getElementById('batch_number');
             await waitForOptions(batchSelect);
-            await new Promise(resolve => setTimeout(resolve, 500)); // Small delay for stability
+            await new Promise(resolve => setTimeout(resolve, 500));
             const selectedBatch = selectHighestNumber(batchSelect);
 
             if (selectedBatch) {
-                // Step 3: Wait for and select highest rack number
                 const rackSelect = document.getElementById('rack_number');
                 await waitForOptions(rackSelect);
                 await new Promise(resolve => setTimeout(resolve, 500));
                 const selectedRack = selectHighestNumber(rackSelect);
 
                 if (selectedRack) {
-                    // Step 4: Wait for and select highest shelf number
                     const shelfSelect = document.getElementById('shelf_number');
                     await waitForOptions(shelfSelect);
                     await new Promise(resolve => setTimeout(resolve, 500));
                     selectHighestNumber(shelfSelect);
 
-                    // Step 5: Click the Submit button
                     const submitButton = document.querySelector('button[name="btn_diary"]');
                     if (submitButton) {
                         submitButton.click();
@@ -125,13 +169,32 @@
         }
     }
 
-    // Main async function to handle the automation
+    // Select highest number function
+    function selectHighestNumber(selectElement) {
+        if (!selectElement) return;
+
+        const options = Array.from(selectElement.options);
+        if (options.length <= 1) return;
+
+        const numbers = options
+            .slice(1)
+            .map(opt => parseInt(opt.value))
+            .filter(num => !isNaN(num));
+
+        if (numbers.length > 0) {
+            const highestNumber = Math.max(...numbers);
+            selectElement.value = highestNumber;
+            selectElement.dispatchEvent(new Event('change'));
+            return highestNumber;
+        }
+        return null;
+    }
+
+    // Main automation function
     async function automate() {
         try {
-            // Replace loading GIF on page load
             replaceLoadingGif();
 
-            // Set up observer for dynamically added loading GIFs
             const observer = new MutationObserver((mutations) => {
                 replaceLoadingGif();
             });
@@ -143,27 +206,33 @@
                 attributeFilter: ['src']
             });
 
-            // Wait for and click Location wise radio button
             const locationRadio = await waitForElement('#p_type3');
             locationRadio.click();
 
-            // Wait for the location dropdown to be visible
             await waitForElement('#location');
 
-            // Show the location_wise div and hide others
             document.getElementById('location_wise').style.display = '';
             document.getElementById('date_wise').style.display = 'none';
             document.getElementById('case_wise').style.display = 'none';
 
-            // Start the selection sequence
             await handleSelections();
+
+            // Add copy notification functionality
+            waitForElement('.dt-buttons').then(() => {
+                const copyButton = document.querySelector('.dt-button.buttons-copy');
+                if (copyButton) {
+                    copyButton.addEventListener('click', () => {
+                        showNotification();
+                    });
+                }
+            });
 
         } catch (error) {
             console.error('Error in automation:', error);
         }
     }
 
-    // Function to add a manual trigger button
+    // Add manual trigger button
     function addManualTriggerButton() {
         const button = document.createElement('button');
         button.textContent = 'Auto-Select Highest Numbers';
