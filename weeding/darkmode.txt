@@ -1,0 +1,347 @@
+// ==UserScript==
+// @name         PHHC Catalogue Dark Theme - Multiple Pages
+// @namespace    Sajin M. Simon
+// @version      1.5
+// @description  Apply dark theme and highlight checked rows for PHHC catalogue pages
+// @author       Sajin M. Simon
+// @match        http://10.145.22.11:8888/weed_catalogue.php
+// @match        http://10.145.22.11:8888/report_catalogue.php
+// @grant        GM_addStyle
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Add the CSS styles
+    const darkThemeStyles = `
+        /* Main background and text colors */
+        body,
+        .panel,
+        .panel-body,
+        input:not([type="checkbox"]):not([type="radio"]),
+        select,
+        .dtree {
+            background-color: #1a1a1a !important;
+            color: #e0e0e0 !important;
+        }
+
+        /* Default table styling */
+        table tr {
+            background-color: #1a1a1a !important;
+            color: #e0e0e0 !important;
+        }
+
+        /* Table cells */
+        table td, table th {
+            color: #e0e0e0 !important;
+            border-color: #404040 !important;
+        }
+
+        /* Style for checked rows */
+        tr.checked-row {
+            background-color: #0d47a1 !important;
+            color: #ffffff !important;
+        }
+
+        tr.checked-row td {
+            color: #ffffff !important;
+        }
+
+        tr.checked-row a {
+            color: #90caf9 !important;
+        }
+
+        tr.checked-row a:hover {
+            color: #bbdefb !important;
+            text-decoration: underline !important;
+        }
+
+        /* Regular row hover effect */
+        table tr:hover {
+            background-color: #2d2d2d !important;
+        }
+
+        /* Checked row hover effect */
+        tr.checked-row:hover {
+            background-color: #1565c0 !important;
+        }
+
+        /* Export Buttons Styling */
+        .dt-buttons .dt-button,
+        .dt-button {
+            background-color: #2d2d2d !important;
+            color: #e0e0e0 !important;
+            border: 1px solid #404040 !important;
+            padding: 6px 12px !important;
+            margin-right: 5px !important;
+            border-radius: 4px !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .dt-buttons .dt-button:hover,
+        .dt-button:hover {
+            background-color: #404040 !important;
+            color: #ffffff !important;
+            border-color: #525252 !important;
+        }
+
+        .dt-buttons .dt-button:active,
+        .dt-button:active {
+            background-color: #1976d2 !important;
+            border-color: #1565c0 !important;
+        }
+
+        /* Specific styles for each export button type */
+        .buttons-csv {
+            background-color: #2d7d32 !important;
+        }
+
+        .buttons-excel {
+            background-color: #1b5e20 !important;
+        }
+
+        .buttons-print {
+            background-color: #0d47a1 !important;
+        }
+
+        .buttons-pdf {
+            background-color: #c62828 !important;
+        }
+
+        .buttons-csv:hover,
+        .buttons-excel:hover,
+        .buttons-print:hover,
+        .buttons-pdf:hover {
+            opacity: 0.9 !important;
+        }
+
+        /* Checkboxes and Radio buttons */
+        input[type="checkbox"],
+        input[type="radio"] {
+            background-color: white !important;
+            border: 1px solid #404040 !important;
+            opacity: 1 !important;
+            accent-color: #2196f3 !important;
+            -webkit-appearance: auto !important;
+            -moz-appearance: auto !important;
+            appearance: auto !important;
+        }
+
+        /* Panel header */
+        .panel-heading {
+            background-color: #2d2d2d !important;
+            color: #ffffff !important;
+            border-bottom: 1px solid #404040 !important;
+        }
+
+        /* Form inputs */
+        input:not([type="checkbox"]):not([type="radio"]),
+        select,
+        textarea {
+            background-color: #2d2d2d !important;
+            color: #e0e0e0 !important;
+            border: 1px solid #404040 !important;
+        }
+
+        /* Input focus states */
+        input:focus:not([type="checkbox"]):not([type="radio"]),
+        select:focus {
+            background-color: #363636 !important;
+            border-color: #2196f3 !important;
+            color: #ffffff !important;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: #1976d2 !important;
+            border-color: #1565c0 !important;
+            color: #ffffff !important;
+        }
+
+        .btn-success {
+            background-color: #28a745 !important;
+            border-color: #1e7e34 !important;
+            color: #ffffff !important;
+        }
+
+        .btn-danger {
+            background-color: #dc3545 !important;
+            border-color: #bd2130 !important;
+            color: #ffffff !important;
+        }
+
+        /* DataTables specific styling */
+        .dataTables_wrapper {
+            background-color: #1a1a1a !important;
+            color: #e0e0e0 !important;
+            padding: 10px !important;
+        }
+
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_processing,
+        .dataTables_wrapper .dataTables_paginate {
+            color: #e0e0e0 !important;
+            margin: 10px 0 !important;
+        }
+
+        .dataTables_wrapper .dataTables_filter input {
+            background-color: #2d2d2d !important;
+            color: #e0e0e0 !important;
+            border: 1px solid #404040 !important;
+            padding: 5px !important;
+        }
+
+        /* Pagination buttons */
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            background-color: #2d2d2d !important;
+            color: #e0e0e0 !important;
+            border: 1px solid #404040 !important;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background-color: #404040 !important;
+            color: #ffffff !important;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background-color: #1976d2 !important;
+            color: #ffffff !important;
+        }
+
+        /* Modal styling */
+        .modal-content {
+            background-color: #1a1a1a !important;
+            color: #e0e0e0 !important;
+        }
+
+        .modal-header {
+            background-color: #2d2d2d !important;
+            border-bottom: 1px solid #404040 !important;
+        }
+
+        .modal-footer {
+            background-color: #2d2d2d !important;
+            border-top: 1px solid #404040 !important;
+        }
+
+        .close {
+            color: #e0e0e0 !important;
+        }
+
+        /* Status badges/labels */
+        .badge, .label {
+            color: #ffffff !important;
+        }
+
+        .label-success, .badge-success {
+            background-color: #28a745 !important;
+        }
+
+        .label-danger, .badge-danger {
+            background-color: #dc3545 !important;
+        }
+
+        .label-warning, .badge-warning {
+            background-color: #ffc107 !important;
+            color: #000000 !important;
+        }
+
+        .label-info, .badge-info {
+            background-color: #17a2b8 !important;
+        }
+    `;
+
+    // Function to add styles to the page
+    function addStyles(css) {
+        const style = document.createElement('style');
+        style.textContent = css;
+        document.head.appendChild(style);
+    }
+
+    // Add the styles to the page
+    addStyles(darkThemeStyles);
+
+    // Function to update row styling based on checkbox state
+    function updateRowStyling(checkbox) {
+        const row = checkbox.closest('tr');
+        if (row) {
+            if (checkbox.checked) {
+                row.classList.add('checked-row');
+            } else {
+                row.classList.remove('checked-row');
+            }
+        }
+    }
+
+    // Function to handle initial checkboxes and set up listeners
+    function setupCheckboxHandlers() {
+        // Handle both regular checkboxes and those in DataTables
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            // Skip if it's already been initialized
+            if (!checkbox.dataset.initialized) {
+                // Set initial state
+                updateRowStyling(checkbox);
+
+                // Add change event listener
+                checkbox.addEventListener('change', function() {
+                    updateRowStyling(this);
+                });
+
+                // Mark as initialized
+                checkbox.dataset.initialized = 'true';
+            }
+        });
+    }
+
+    // Function to handle dynamic content
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === 1) { // ELEMENT_NODE
+                        // Handle any new checkboxes
+                        const newCheckboxes = node.querySelectorAll('input[type="checkbox"]');
+                        newCheckboxes.forEach(checkbox => {
+                            if (!checkbox.dataset.initialized) {
+                                updateRowStyling(checkbox);
+                                checkbox.addEventListener('change', function() {
+                                    updateRowStyling(this);
+                                });
+                                checkbox.dataset.initialized = 'true';
+                            }
+                        });
+
+                        // Re-apply styles to any new elements
+                        const inputs = node.querySelectorAll('input:not([type="checkbox"]):not([type="radio"])');
+                        inputs.forEach(input => {
+                            input.style.backgroundColor = '#2d2d2d';
+                            input.style.color = '#e0e0e0';
+                        });
+                    }
+                });
+            }
+        });
+    });
+
+    // Start observing the document with support for DataTables dynamic content
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+
+    // Initial setup
+    setupCheckboxHandlers();
+
+    // Run periodically to catch any dynamically added checkboxes
+    setInterval(setupCheckboxHandlers, 1000);
+
+    // Handle DataTables specific events if present
+    if (typeof $.fn.dataTable !== 'undefined') {
+        $(document).on('draw.dt', function() {
+            setupCheckboxHandlers();
+        });
+    }
+})();
