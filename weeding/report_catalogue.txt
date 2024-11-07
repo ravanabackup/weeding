@@ -2,7 +2,7 @@
 // @name         Weeding Catalogue Report Complete Automator
 // @namespace    Sajin M. Simon
 // @version      0.6
-// @description  Automates all selections in weeding catalogue report page with enhanced copy notification
+// @description  Automates all selections in weeding catalogue report page with enhanced copy notification and title numbers
 // @author       Sajin M. Simon
 // @match        http://10.145.22.11:8888/report_catalogue.php
 // @grant        none
@@ -11,7 +11,21 @@
 (function() {
     'use strict';
 
-     // Replace favicon
+    // Global variables to track highest numbers
+    let highestBatch = '';
+    let highestRack = '';
+    let highestShelf = '';
+    const YOUR_NAME = 'Sajin Report'; // Add your name here
+
+    // Function to update title with highest numbers
+    function updateTitle() {
+        const numbers = [highestBatch, highestRack, highestShelf]
+            .filter(num => num !== '')
+            .join(' | ');
+        document.title = `${YOUR_NAME} - ${numbers}` || "Entry";
+    }
+
+    // Replace favicon
     function replaceFavicon() {
         const existingFavicon = document.querySelector("link[rel*='icon']");
         if (existingFavicon) {
@@ -85,26 +99,11 @@
         }, 2000);
     }
 
-    document.title = "Sajin Report";
-
-    // Observer for title changes
-    const observer = new MutationObserver(function() {
-        if (document.title !== "Entry") {
-            document.title = "Entry";
-        }
-    });
-
-    observer.observe(document.querySelector('title'), {
-        subtree: true,
-        characterData: true,
-        childList: true
-    });
-
     // Replace loading GIF
     function replaceLoadingGif() {
         const images = document.querySelectorAll('img[src*="loading.gif"]');
         images.forEach(img => {
-            img.src = 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/pepe-evil-plan-evil-plan.gif';
+            img.src = 'https://icons8.com/preloaders/preloaders/770/Filling%20broken%20wheel.gif';
         });
     }
 
@@ -150,43 +149,8 @@
         });
     }
 
-    // Handle selections function
-    async function handleSelections() {
-        try {
-            const locationSelect = document.getElementById('location');
-            locationSelect.value = 'CJA';
-            locationSelect.dispatchEvent(new Event('change'));
-
-            const batchSelect = document.getElementById('batch_number');
-            await waitForOptions(batchSelect);
-            await new Promise(resolve => setTimeout(resolve, 500));
-            const selectedBatch = selectHighestNumber(batchSelect);
-
-            if (selectedBatch) {
-                const rackSelect = document.getElementById('rack_number');
-                await waitForOptions(rackSelect);
-                await new Promise(resolve => setTimeout(resolve, 500));
-                const selectedRack = selectHighestNumber(rackSelect);
-
-                if (selectedRack) {
-                    const shelfSelect = document.getElementById('shelf_number');
-                    await waitForOptions(shelfSelect);
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    selectHighestNumber(shelfSelect);
-
-                    const submitButton = document.querySelector('button[name="btn_diary"]');
-                    if (submitButton) {
-                        submitButton.click();
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Error in selection sequence:', error);
-        }
-    }
-
-    // Select highest number function
-    function selectHighestNumber(selectElement) {
+    // Select highest number function with title update
+    function selectHighestNumber(selectElement, type) {
         if (!selectElement) return;
 
         const options = Array.from(selectElement.options);
@@ -201,9 +165,59 @@
             const highestNumber = Math.max(...numbers);
             selectElement.value = highestNumber;
             selectElement.dispatchEvent(new Event('change'));
+
+            // Update corresponding global variable
+            switch(type) {
+                case 'batch':
+                    highestBatch = highestNumber.toString();
+                    break;
+                case 'rack':
+                    highestRack = highestNumber.toString();
+                    break;
+                case 'shelf':
+                    highestShelf = highestNumber.toString();
+                    break;
+            }
+
+            updateTitle();
             return highestNumber;
         }
         return null;
+    }
+
+    // Handle selections function
+    async function handleSelections() {
+        try {
+            const locationSelect = document.getElementById('location');
+            locationSelect.value = 'CJA';
+            locationSelect.dispatchEvent(new Event('change'));
+
+            const batchSelect = document.getElementById('batch_number');
+            await waitForOptions(batchSelect);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const selectedBatch = selectHighestNumber(batchSelect, 'batch');
+
+            if (selectedBatch) {
+                const rackSelect = document.getElementById('rack_number');
+                await waitForOptions(rackSelect);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const selectedRack = selectHighestNumber(rackSelect, 'rack');
+
+                if (selectedRack) {
+                    const shelfSelect = document.getElementById('shelf_number');
+                    await waitForOptions(shelfSelect);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    selectHighestNumber(shelfSelect, 'shelf');
+
+                    const submitButton = document.querySelector('button[name="btn_diary"]');
+                    if (submitButton) {
+                        submitButton.click();
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error in selection sequence:', error);
+        }
     }
 
     // Main automation function
