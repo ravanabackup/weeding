@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         High Court Date Picker with Auto-Submit, Auto-fill, Batch Tracker and Notifications
+// @name         Enhanced High Court Date Picker with Search and Improved Calendar
 // @namespace    Sajin M. Simon
 // @version      1.9
-// @description  Complete solution with date picker, auto-fill, batch tracker, notifications, random gif replacement and row highlighting
+// @description  Complete solution with date picker, search filter, auto-fill, batch tracker and notifications
 // @author       Sajin M. Simon
 // @match        *://10.145.22.11:8888/weed_catalogue.php*
 // @grant        GM_xmlhttpRequest
@@ -11,46 +11,15 @@
 (function() {
     'use strict';
 
-     // Replace favicon
-    function replaceFavicon() {
-        const existingFavicon = document.querySelector("link[rel*='icon']");
-        if (existingFavicon) {
-            existingFavicon.href = "https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/cat.ico";
-        } else {
-            const newFavicon = document.createElement("link");
-            newFavicon.rel = "icon";
-            newFavicon.href = "https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/cat.ico";
-            document.head.appendChild(newFavicon);
-        }
-    }
-
-    // Run favicon replacement on load
-    replaceFavicon();
-
-    document.title = "Sajin Entry";
-
-    // In case the title changes dynamically, we can observe it
-    const observer = new MutationObserver(function() {
-        if (document.title !== "Entry") {
-            document.title = "Entry";
-        }
-    });
-
-    observer.observe(document.querySelector('title'), {
-        subtree: true,
-        characterData: true,
-        childList: true
-    });
-
     // Configuration object
     const CONFIG = {
         HEART: {
             ACTIVE: {
-                color: '#2ecc71',
+                color: '#000000',
                 symbol: '✔️'
             },
             INACTIVE: {
-                color: '#e74c3c',
+                color: '#000000',
                 symbol: '❌'
             },
             style: {
@@ -84,12 +53,12 @@
         IMAGES: {
             NIC_IMAGE: {
                 original: 'nic.jpg',
-                replacement: 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/mod.jpg'
+                replacement: 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/colorVanilla%401x-1.3s-136px-60px.gif'
             },
             LOADING_GIFS: [
-                'https://media.tenor.com/IESk2X7FqlEAAAAj/windows-xp-loading.gif',
-                'https://media.tenor.com/IESk2X7FqlEAAAAj/windows-xp-loading.gif',
-                'https://media.tenor.com/IESk2X7FqlEAAAAj/windows-xp-loading.gif'
+                'https://icons8.com/preloaders/preloaders/805/Glowing%20ring.gif',
+                'https://icons8.com/preloaders/preloaders/805/Glowing%20ring.gif',
+                'https://icons8.com/preloaders/preloaders/805/Glowing%20ring.gif'
             ]
         },
         TOAST: {
@@ -103,12 +72,42 @@
         },
         ROW_HIGHLIGHT: {
             CHECKED: {
-                backgroundColor: '#b5eeff',  // Light blue background
+                backgroundColor: '#b5eeff',
                 transition: 'background-color 0.3s ease'
             },
             UNCHECKED: {
                 backgroundColor: '',
                 transition: 'background-color 0.3s ease'
+            }
+        },
+        SEARCH: {
+            style: {
+                container: {
+                    position: 'fixed',
+                    top: '10px',
+                    right: '10px',
+                    zIndex: '9999',
+                    display: 'flex',
+                    gap: '10px',
+                    alignItems: 'center',
+                    background: 'black',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                },
+                input: {
+                    padding: '5px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #ddd',
+                    width: '200px'
+                },
+                button: {
+                    padding: '5px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #ddd',
+                    background: 'white',
+                    cursor: 'pointer'
+                }
             }
         }
     };
@@ -124,10 +123,169 @@
             message: '',
             count: 0,
             timestamp: 0
-        }
+        },
+        datePickerVisible: false
     };
 
-    // Row highlighting function
+    // Helper Functions
+    function triggerEvent(element, eventType) {
+        const event = new Event(eventType, { bubbles: true });
+        element.dispatchEvent(event);
+    }
+
+    function getRandomGif() {
+        const gifs = CONFIG.IMAGES.LOADING_GIFS;
+        const randomIndex = Math.floor(Math.random() * gifs.length);
+        return gifs[randomIndex];
+    }
+
+    // Core functionality functions
+    function replaceFavicon() {
+        const existingFavicon = document.querySelector("link[rel*='icon']");
+        if (existingFavicon) {
+            existingFavicon.href = "https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/cat.ico";
+        } else {
+            const newFavicon = document.createElement("link");
+            newFavicon.rel = "icon";
+            newFavicon.href = "https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/cat.ico";
+            document.head.appendChild(newFavicon);
+        }
+    }
+
+    function addSearchFilter() {
+        const searchContainer = document.createElement('div');
+        Object.assign(searchContainer.style, CONFIG.SEARCH.style.container);
+
+        const searchInput = document.createElement('input');
+        Object.assign(searchInput.style, CONFIG.SEARCH.style.input);
+        searchInput.placeholder = 'Search Case ID...';
+        searchInput.id = 'caseIdSearch';
+
+        const clearButton = document.createElement('button');
+        Object.assign(clearButton.style, CONFIG.SEARCH.style.button);
+        clearButton.textContent = 'Clear';
+        clearButton.onclick = () => {
+            searchInput.value = '';
+            filterRows('');
+        };
+
+        searchContainer.appendChild(searchInput);
+        searchContainer.appendChild(clearButton);
+        document.body.appendChild(searchContainer);
+
+        searchInput.addEventListener('input', (e) => filterRows(e.target.value));
+    }
+
+    function filterRows(searchText) {
+        const rows = document.querySelectorAll('table tr');
+        const searchValue = searchText.toLowerCase();
+
+        rows.forEach((row, index) => {
+            if (index === 0) return;
+            const cells = row.getElementsByTagName('td');
+            if (cells.length > 1) {
+                const caseId = cells[1].textContent.toLowerCase();
+                row.style.display = caseId.includes(searchValue) ? '' : 'none';
+            }
+        });
+    }
+
+    // Date picker functions
+    function addDatePicker() {
+        const dateButton = document.createElement('button');
+        dateButton.innerHTML = '📅';
+        dateButton.style.position = 'fixed';
+        dateButton.style.bottom = '90px';
+        dateButton.style.left = '10px';
+        dateButton.style.zIndex = '9999';
+        dateButton.style.padding = '8px';
+        dateButton.style.borderRadius = '4px';
+        dateButton.style.background = 'black';
+        dateButton.style.border = '1px solid #ddd';
+        dateButton.style.cursor = 'pointer';
+
+        dateButton.onclick = (e) => {
+            e.stopPropagation();
+            toggleDatePicker();
+        };
+
+        document.body.appendChild(dateButton);
+
+        document.addEventListener('click', (e) => {
+            const picker = document.getElementById('customDatePicker');
+            if (picker && !picker.contains(e.target) && e.target !== dateButton) {
+                picker.remove();
+                state.datePickerVisible = false;
+            }
+        });
+    }
+
+    function toggleDatePicker() {
+        const existingPicker = document.getElementById('customDatePicker');
+        if (existingPicker) {
+            existingPicker.remove();
+            state.datePickerVisible = false;
+        } else {
+            createDatePicker();
+            state.datePickerVisible = true;
+        }
+    }
+
+    function createDatePicker() {
+        const picker = document.createElement('input');
+        picker.type = 'date';
+        picker.id = 'customDatePicker';
+        picker.style.position = 'fixed';
+        picker.style.bottom = '130px';
+        picker.style.left = '10px';
+        picker.style.zIndex = '10000';
+
+        const dateFromInput = document.querySelector('input[name="f_date"]');
+        if (dateFromInput && dateFromInput.value) {
+            const [day, month, year] = dateFromInput.value.split('/');
+            picker.value = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+
+        picker.addEventListener('change', updateDates);
+        picker.addEventListener('click', (e) => e.stopPropagation());
+        document.body.appendChild(picker);
+    }
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
+
+    function updateDates(event) {
+        showToast('Updating dates...');
+        const formattedDate = formatDate(event.target.value);
+        const dateFromInput = document.querySelector('input[name="f_date"]');
+        const dateToInput = document.querySelector('input[name="t_date"]');
+
+        if (dateFromInput && dateToInput) {
+            dateFromInput.value = formattedDate;
+            dateToInput.value = formattedDate;
+
+            triggerEvent(dateFromInput, 'change');
+            triggerEvent(dateToInput, 'change');
+
+            setTimeout(() => {
+                clickSubmitButton();
+            }, 100);
+        }
+    }
+
+    function clickSubmitButton() {
+        const submitButton = document.querySelector('.btn.btn-success');
+        if (submitButton) {
+            submitButton.click();
+        }
+    }
+
+    // Row highlighting functions
     function updateRowHighlight(checkbox) {
         const row = checkbox.closest('tr');
         if (!row) return;
@@ -139,17 +297,9 @@
         }
     }
 
-    // Update all existing checkboxes
     function updateAllRowHighlights() {
         const checkboxes = document.querySelectorAll('input[type="checkbox"]');
         checkboxes.forEach(updateRowHighlight);
-    }
-
-    // Get random GIF URL
-    function getRandomGif() {
-        const gifs = CONFIG.IMAGES.LOADING_GIFS;
-        const randomIndex = Math.floor(Math.random() * gifs.length);
-        return gifs[randomIndex];
     }
 
     // Toast notification system
@@ -213,34 +363,6 @@
 
         container.appendChild(toast);
 
-        if (!document.getElementById('toast-animations')) {
-            const style = document.createElement('style');
-            style.id = 'toast-animations';
-            style.textContent = `
-                @keyframes slideIn {
-                    from {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                    to {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                }
-                @keyframes slideOut {
-                    from {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                    to {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-
         setTimeout(() => {
             toast.style.animation = 'slideOut 0.3s ease-in';
             toast.addEventListener('animationend', () => {
@@ -251,7 +373,7 @@
         }, 5000);
     }
 
-// Image and GIF replacement function
+    // Image handling functions
     function replaceImages() {
         const images = document.getElementsByTagName('img');
         for (let img of images) {
@@ -268,7 +390,6 @@
         }
     }
 
-    // Add observer for dynamic image replacement
     function observeImageChanges() {
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
@@ -284,7 +405,7 @@
         });
     }
 
-    // Batch tracking functions
+ // Batch tracking functions
     function findLargestCJABatch() {
         let maxBatch = 0;
         const rows = document.querySelectorAll('tr');
@@ -321,80 +442,6 @@
             }
         }
         display.textContent = `Largest CJA Batch: ${largestBatch}`;
-    }
-
-    // Date picker functions
-    function addDatePicker() {
-        const dateButton = document.createElement('button');
-        dateButton.innerHTML = '📅';
-        dateButton.style.position = 'fixed';
-        dateButton.style.bottom = '90px';
-        dateButton.style.left = '10px';
-        dateButton.style.zIndex = '9999';
-        dateButton.style.padding = '8px';
-        dateButton.style.borderRadius = '4px';
-        dateButton.style.background = 'white';
-        dateButton.style.border = '1px solid #ddd';
-        dateButton.style.cursor = 'pointer';
-        dateButton.onclick = toggleDatePicker;
-        document.body.appendChild(dateButton);
-    }
-
-    function toggleDatePicker() {
-        const existingPicker = document.getElementById('customDatePicker');
-        if (existingPicker) {
-            existingPicker.remove();
-        } else {
-            createDatePicker();
-        }
-    }
-
-    function createDatePicker() {
-        const picker = document.createElement('input');
-        picker.type = 'date';
-        picker.id = 'customDatePicker';
-        picker.style.position = 'fixed';
-        picker.style.bottom = '130px';
-        picker.style.left = '10px';
-        picker.style.zIndex = '10000';
-        picker.onchange = updateDates;
-        document.body.appendChild(picker);
-    }
-
-    function formatDate(dateString) {
-        const date = new Date(dateString);
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
-    }
-
-    function updateDates(event) {
-        showToast('Updating dates...');
-        const formattedDate = formatDate(event.target.value);
-        const dateFromInput = document.querySelector('input[name="f_date"]');
-        const dateToInput = document.querySelector('input[name="t_date"]');
-
-        if (dateFromInput && dateToInput) {
-            dateFromInput.value = formattedDate;
-            dateToInput.value = formattedDate;
-
-            triggerEvent(dateFromInput, 'change');
-            triggerEvent(dateToInput, 'change');
-            clickSubmitButton();
-        }
-    }
-
-    function triggerEvent(element, eventType) {
-        const event = new Event(eventType, { bubbles: true });
-        element.dispatchEvent(event);
-    }
-
-    function clickSubmitButton() {
-        const submitButton = document.querySelector('.btn.btn-success');
-        if (submitButton) {
-            submitButton.click();
-        }
     }
 
     // Auto-fill functions
@@ -508,7 +555,7 @@
         }
     }
 
-    // Initialize everything
+    // Initialize the application
     function initialize() {
         // Add styles
         const style = document.createElement('style');
@@ -526,6 +573,16 @@
                 min-width: 80px;
                 text-align: center;
             }
+
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
         `;
         document.head.appendChild(style);
 
@@ -536,9 +593,12 @@
         document.body.appendChild(counter);
 
         // Add all main elements
+        replaceFavicon();
+        document.title = "Sajin Entry";
         replaceImages();
         observeImageChanges();
         addDatePicker();
+        addSearchFilter();
 
         // Add heart button
         document.body.appendChild(createHeartButton());
@@ -546,7 +606,7 @@
         // Initial updates
         updateBatchDisplay();
         updateCounter();
-        updateAllRowHighlights();  // Initial highlight update
+        updateAllRowHighlights();
 
         // Show welcome toast
         showToast('Script initialized successfully! 👋');
@@ -555,7 +615,7 @@
         document.addEventListener('change', (e) => {
             if (e.target.type === 'checkbox') {
                 updateCounter();
-                updateRowHighlight(e.target);  // Update row highlight when checkbox changes
+                updateRowHighlight(e.target);
                 if (state.isDataLoaded && e.target.checked) {
                     fillRowValues(e.target.closest('tr'));
                 }
@@ -568,11 +628,10 @@
         // Add observer for dynamic updates
         const observer = new MutationObserver((mutations) => {
             updateBatchDisplay();
-            // Check if new checkboxes were added
             mutations.forEach(mutation => {
                 if (mutation.type === 'childList') {
                     mutation.addedNodes.forEach(node => {
-                        if (node.nodeType === 1) { // Element node
+                        if (node.nodeType === 1) {
                             const checkboxes = node.querySelectorAll('input[type="checkbox"]');
                             checkboxes.forEach(updateRowHighlight);
                         }
