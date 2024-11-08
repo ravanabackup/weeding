@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Fast Thanos Hide/Show Effect
+// @name         Simple Thanos Hide/Show Effect
 // @namespace    http://tampermonkey.net/
 // @version      3.2
 // @description  Makes completed rows hide/show with a simple fade effect
@@ -103,7 +103,8 @@
             top: 20px;
             right: 20px;
             padding: 12px 24px;
-            background-color: white;
+            background-color: #2196F3;
+            color: white;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             z-index: 10000;
