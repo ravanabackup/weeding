@@ -1,0 +1,269 @@
+// ==UserScript==
+// @name         Fast Thanos Hide/Show Effect
+// @namespace    http://tampermonkey.net/
+// @version      3.0
+// @description  Makes completed rows hide/show with a simple fade effect
+// @author       You
+// @match        http://10.145.22.11:8888/weed_catalogue.php
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Store hidden rows
+    let hiddenRows = [];
+
+    // Add required styles
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .button-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 9999;
+        }
+
+        .thanos-button {
+            padding: 12px 24px;
+            background-color: #7b2cbf;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .thanos-button:hover {
+            background-color: #9d4edd;
+            transform: scale(1.05);
+        }
+
+        .thanos-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 10000;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        .fading-out {
+            animation: fadeOut 2s ease forwards;
+        }
+
+        .fading-in {
+            animation: fadeIn 2s ease forwards;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Create button container and buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'button-container';
+
+    const thanosButton = createButton('💫 Hide Rows', 'snap-button');
+    const reverseButton = createButton('✨ Show Rows', 'reverse-button');
+    reverseButton.disabled = true;
+
+    buttonContainer.appendChild(thanosButton);
+    buttonContainer.appendChild(reverseButton);
+    document.body.appendChild(buttonContainer);
+
+    // Helper function to create buttons
+    function createButton(text, id) {
+        const button = document.createElement('button');
+        button.className = 'thanos-button';
+        button.id = id;
+        button.innerHTML = text;
+        return button;
+    }
+
+    // Toast notification function
+    function showToast(message, duration = 3000) {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.5s ease-in forwards';
+            setTimeout(() => toast.remove(), 500);
+        }, duration);
+    }
+
+    // Check if a row is complete
+    function isRowComplete(row) {
+        if (!row || !row.cells) return false;
+
+        const locationSelect = row.querySelector('select');
+        const inputs = row.querySelectorAll('input[type="text"]');
+        const checkbox = row.querySelector('input[type="checkbox"]');
+
+        const hasLocation = locationSelect && locationSelect.value;
+        const hasAllInputs = Array.from(inputs).every(input => input.value.trim() !== '');
+        const isNotChecked = !checkbox || !checkbox.checked;
+
+        return hasLocation && hasAllInputs && isNotChecked;
+    }
+
+    // Store row data before hiding
+    function storeRowData(row) {
+        const inputs = row.querySelectorAll('input, select');
+        const data = {};
+        inputs.forEach(input => {
+            if (input.type === 'checkbox') {
+                data[input.name || input.id] = input.checked;
+            } else {
+                data[input.name || input.id] = input.value;
+            }
+        });
+        return {
+            html: row.innerHTML,
+            data: data
+        };
+    }
+
+    // Hide rows effect
+    function hideRows() {
+        const rows = Array.from(document.querySelectorAll('table tr')).slice(1); // Skip header row
+        const completeRows = rows.filter(isRowComplete);
+
+        if (completeRows.length === 0) {
+            showToast('No complete rows to hide! 🤔');
+            return;
+        }
+
+        thanosButton.disabled = true;
+        showToast(`Hiding ${completeRows.length} rows... 💫`);
+
+        completeRows.forEach((row, index) => {
+            setTimeout(() => {
+                // Store row data before hiding
+                hiddenRows.push({
+                    data: storeRowData(row),
+                    originalIndex: Array.from(row.parentNode.children).indexOf(row)
+                });
+
+                row.classList.add('fading-out');
+
+                setTimeout(() => {
+                    row.remove();
+                    if (index === completeRows.length - 1) {
+                        showToast('All complete rows are hidden! ✨');
+                        reverseButton.disabled = false;
+                        thanosButton.disabled = false;
+                    }
+                }, 10);
+            }, index * 10);
+        });
+    }
+
+    // Show rows effect
+    function showRows() {
+        if (hiddenRows.length === 0) {
+            showToast('No hidden rows to show! 🤔');
+            return;
+        }
+
+        reverseButton.disabled = true;
+        showToast(`Showing ${hiddenRows.length} rows... ✨`);
+
+        const table = document.querySelector('table tbody');
+
+        hiddenRows.forEach((storedRow, index) => {
+            setTimeout(() => {
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = storedRow.data.html;
+                newRow.style.opacity = '0';
+
+                // Insert at original position or at the end if position is no longer valid
+                const currentRows = Array.from(table.children);
+                if (storedRow.originalIndex < currentRows.length) {
+                    table.insertBefore(newRow, currentRows[storedRow.originalIndex]);
+                } else {
+                    table.appendChild(newRow);
+                }
+
+                // Restore input values
+                Object.entries(storedRow.data.data).forEach(([key, value]) => {
+                    const input = newRow.querySelector(`[name="${key}"], [id="${key}"]`);
+                    if (input) {
+                        if (input.type === 'checkbox') {
+                            input.checked = value;
+                        } else {
+                            input.value = value;
+                        }
+                    }
+                });
+
+                // Add appear animation
+                setTimeout(() => {
+                    newRow.classList.add('fading-in');
+                }, 10);
+
+                if (index === hiddenRows.length - 1) {
+                    setTimeout(() => {
+                        showToast('All rows are visible again! 🌟');
+                        thanosButton.disabled = false;
+                        hiddenRows = [];
+                    }, 10);
+                }
+            }, index * 10);
+        });
+    }
+
+    // Add click event listeners
+    thanosButton.addEventListener('click', hideRows);
+    reverseButton.addEventListener('click', showRows);
+})();
