@@ -1,0 +1,135 @@
+// ==UserScript==
+// @name         PHHC Batch Number Validator
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Validates batch number fields for checked rows in weeding catalogue
+// @author       You
+// @match        http://10.145.22.11:8888/weed_catalogue.php*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Add CSS for validation styling
+    const style = document.createElement('style');
+    style.textContent = `
+        .batch-error {
+            background-color: #ffebee !important;
+            border: 1px solid #ff0000 !important;
+        }
+
+        .error-tooltip {
+            position: absolute;
+            background-color: #fff;
+            color: #ff0000;
+            padding: 5px;
+            border: 1px solid #ff0000;
+            border-radius: 3px;
+            font-size: 12px;
+            z-index: 1000;
+            margin-top: 5px;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Function to validate a single batch field
+    function validateBatchField(rowIndex) {
+        // Get the checkbox and batch input for this row
+        const checkbox = document.getElementById(`select_id_${rowIndex}`);
+        const batchInput = document.getElementById(`batch_${rowIndex}`);
+
+        // If either element doesn't exist, skip validation
+        if (!checkbox || !batchInput) return true;
+
+        // Clear previous error styling
+        batchInput.classList.remove('batch-error');
+        const existingTooltip = document.getElementById(`error-tooltip-${rowIndex}`);
+        if (existingTooltip) existingTooltip.remove();
+
+        // If checkbox is checked and batch field is empty
+        if (checkbox.checked && !batchInput.value.trim()) {
+            // Add error styling
+            batchInput.classList.add('batch-error');
+
+            // Add error tooltip
+            const tooltip = document.createElement('div');
+            tooltip.id = `error-tooltip-${rowIndex}`;
+            tooltip.className = 'error-tooltip';
+            tooltip.textContent = 'Batch number is required';
+            batchInput.parentElement.appendChild(tooltip);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    // Function to validate all batch fields
+    function validateAllBatchFields(totalRows) {
+        let isValid = true;
+        let firstErrorRow = null;
+
+        for (let i = 0; i < totalRows; i++) {
+            if (!validateBatchField(i)) {
+                isValid = false;
+                if (firstErrorRow === null) {
+                    firstErrorRow = i;
+                }
+            }
+        }
+
+        // Scroll to first error if any found
+        if (firstErrorRow !== null) {
+            const firstErrorElement = document.getElementById(`batch_${firstErrorRow}`);
+            if (firstErrorElement) {
+                firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        return isValid;
+    }
+
+    // Override the original verify_request function
+    const originalVerifyRequest = window.verify_request;
+    window.verify_request = function(rowCount) {
+        // Perform batch field validation
+        if (!validateAllBatchFields(rowCount)) {
+            alert('Please enter batch numbers for all selected rows');
+            return false;
+        }
+
+        // If validation passes, call the original function
+        if (typeof originalVerifyRequest === 'function') {
+            return originalVerifyRequest.apply(this, arguments);
+        }
+
+        return true;
+    };
+
+    // Add validation on checkbox change
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.id && e.target.id.startsWith('select_id_')) {
+            const rowIndex = e.target.id.split('_')[2];
+            validateBatchField(rowIndex);
+        }
+    });
+
+    // Add validation on batch input change
+    document.addEventListener('input', function(e) {
+        if (e.target && e.target.id && e.target.id.startsWith('batch_')) {
+            const rowIndex = e.target.id.split('_')[1];
+            validateBatchField(rowIndex);
+        }
+    });
+
+    // Add validation for "Select All" checkbox if it exists
+    const selectAllCheckbox = document.getElementById('select_all');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            // Get total number of rows (you might need to adjust this based on your page structure)
+            const totalRows = document.querySelectorAll('[id^="batch_"]').length;
+            validateAllBatchFields(totalRows);
+        });
+    }
+})();
