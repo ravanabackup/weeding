@@ -1,0 +1,383 @@
+// ==UserScript==
+// @name         Thanos Hide/Show Effect with Live Progress
+// @namespace    http://tampermonkey.net/
+// @version      3.4
+// @description  Makes completed rows hide/show with fade effect and shows live progress
+// @author       You
+// @match        http://10.145.22.11:8888/weed_catalogue.php
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Store hidden rows
+    let hiddenRows = [];
+    let isSnapping = false;
+
+    // Add required styles
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeOut {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.8); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes snap {
+            0% { font-size: 100px; opacity: 1; }
+            100% { font-size: 0; opacity: 0; }
+        }
+
+        .progress-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            z-index: 10000;
+            display: none;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .progress-text {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+
+        .progress-bar {
+            width: 300px;
+            height: 6px;
+            background: #444;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #7b2cbf;
+            transition: width 0.3s ease;
+        }
+
+        .button-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 9999;
+        }
+
+        .thanos-button {
+            padding: 12px 24px;
+            background-color: #7b2cbf;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .thanos-button:hover {
+            background-color: #9d4edd;
+            transform: scale(1.05);
+        }
+
+        .thanos-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .snap-animation {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 150px;
+            color: #ffd700;
+            z-index: 10000;
+            animation: snap 5s ease-in-out;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            background-color: #2196F3;
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 10000;
+            animation: slideIn 0.5s ease-out;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        .fading-out {
+            animation: fadeOut 2s ease forwards;
+        }
+
+        .fading-in {
+            animation: fadeIn 2s ease forwards;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Create progress bar
+    const progressContainer = document.createElement('div');
+    progressContainer.className = 'progress-container';
+    progressContainer.innerHTML = `
+        <div class="progress-text">Magic in progress...</div>
+        <div class="progress-bar">
+            <div class="progress-fill"></div>
+        </div>
+    `;
+    document.body.appendChild(progressContainer);
+
+    // Create button container and buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'button-container';
+
+    const thanosButton = createButton('💫 Magic 🤞', 'snap-button');
+    //remove // from line 172, 173, 176 to enable
+    //const reverseButton = createButton('✨ Reverse Magic 🤞', 'reverse-button');
+    //reverseButton.disabled = true;
+
+    buttonContainer.appendChild(thanosButton);
+    //buttonContainer.appendChild(reverseButton);
+    document.body.appendChild(buttonContainer);
+
+    // Helper function to create buttons
+    function createButton(text, id) {
+        const button = document.createElement('button');
+        button.className = 'thanos-button';
+        button.id = id;
+        button.innerHTML = text;
+        return button;
+    }
+
+    // Toast notification function
+    function showToast(message, duration = 3000) {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.5s ease-in forwards';
+            setTimeout(() => toast.remove(), 500);
+        }, duration);
+    }
+
+    // Check if a row has all required data filled
+    function isRowComplete(row) {
+        if (!row || !row.cells) return false;
+
+        const locationSelect = row.querySelector('select');
+        const inputs = row.querySelectorAll('input[type="text"]');
+        const checkbox = row.querySelector('input[type="checkbox"]');
+
+        // Check if all text inputs have values
+        const hasAllInputs = Array.from(inputs).every(input => {
+            const value = input.value.trim();
+            return value !== '' && value !== '0' && value !== '-';
+        });
+
+        // Check if location is selected and has a valid value
+        const hasLocation = locationSelect && locationSelect.value &&
+                           locationSelect.value !== '0' &&
+                           locationSelect.value !== 'Select Location';
+
+        // Check if checkbox is not checked (assuming checked means processed)
+        const isNotProcessed = !checkbox || !checkbox.checked;
+
+        return hasLocation && hasAllInputs && isNotProcessed;
+    }
+
+    // Update progress display
+    function updateProgress(current, total) {
+        const progressText = progressContainer.querySelector('.progress-text');
+        const progressFill = progressContainer.querySelector('.progress-fill');
+        const percentage = (current / total) * 100;
+
+        progressText.textContent = `Snapping rows via Magic... ${current}/${total}`;
+        progressFill.style.width = `${percentage}%`;
+
+        if (current === total) {
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+                isSnapping = false;
+            }, 1000);
+        }
+    }
+
+    // Store row data before hiding
+    function storeRowData(row) {
+        const inputs = row.querySelectorAll('input, select');
+        const data = {};
+        inputs.forEach(input => {
+            if (input.type === 'checkbox') {
+                data[input.name || input.id] = input.checked;
+            } else {
+                data[input.name || input.id] = input.value;
+            }
+        });
+        return {
+            html: row.innerHTML,
+            data: data
+        };
+    }
+
+    // Get counts of complete and incomplete rows
+    function getRowCounts() {
+        const rows = Array.from(document.querySelectorAll('table tr')).slice(1); // Skip header row
+        const completeRows = rows.filter(isRowComplete);
+        return {
+            complete: completeRows.length,
+            total: rows.length
+        };
+    }
+
+    // Hide rows effect
+    function hideRows() {
+        if (isSnapping) return;
+
+        const rows = Array.from(document.querySelectorAll('table tr')).slice(1);
+        const completeRows = rows.filter(isRowComplete);
+
+        if (completeRows.length === 0) {
+            showToast('No complete rows to hide! All rows need proper data filled. 🤔');
+            return;
+        }
+
+        isSnapping = true;
+        thanosButton.disabled = true;
+        progressContainer.style.display = 'block';
+
+        // Display initial count
+        const counts = getRowCounts();
+        showToast(`Found ${counts.complete} complete rows out of ${counts.total} total rows 💫`);
+
+        // Display the snap animation
+        const snapAnimation = document.createElement('div');
+        snapAnimation.textContent = '🧙‍♂️✨🔮';
+        snapAnimation.classList.add('snap-animation');
+        document.body.appendChild(snapAnimation);
+
+        let processedCount = 0;
+        completeRows.forEach((row, index) => {
+            setTimeout(() => {
+                hiddenRows.push({
+                    data: storeRowData(row),
+                    originalIndex: Array.from(row.parentNode.children).indexOf(row)
+                });
+
+                row.classList.add('fading-out');
+                processedCount++;
+                updateProgress(processedCount, completeRows.length);
+
+                setTimeout(() => {
+                    row.remove();
+                    if (processedCount === completeRows.length) {
+                        showToast('Magic complete! All filled rows have been hidden ✨');
+                        setTimeout(() => {
+                            snapAnimation.remove();
+                            thanosButton.disabled = false;
+                            reverseButton.disabled = false;
+                        }, 2000);
+                    }
+                }, 2000);
+            }, index * 100);
+        });
+    }
+
+    // Show rows effect
+    function showRows() {
+        if (hiddenRows.length === 0) {
+            showToast('No hidden rows to show! 🤔');
+            return;
+        }
+
+        reverseButton.disabled = true;
+        progressContainer.style.display = 'block';
+
+        const table = document.querySelector('table tbody');
+        let processedCount = 0;
+
+        hiddenRows.forEach((storedRow, index) => {
+            setTimeout(() => {
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = storedRow.data.html;
+                newRow.style.opacity = '0';
+
+                const currentRows = Array.from(table.children);
+                if (storedRow.originalIndex < currentRows.length) {
+                    table.insertBefore(newRow, currentRows[storedRow.originalIndex]);
+                } else {
+                    table.appendChild(newRow);
+                }
+
+                // Restore input values
+                Object.entries(storedRow.data.data).forEach(([key, value]) => {
+                    const input = newRow.querySelector(`[name="${key}"], [id="${key}"]`);
+                    if (input) {
+                        if (input.type === 'checkbox') {
+                            input.checked = value;
+                        } else {
+                            input.value = value;
+                        }
+                    }
+                });
+
+                setTimeout(() => {
+                    newRow.classList.add('fading-in');
+                }, 10);
+
+                processedCount++;
+                updateProgress(processedCount, hiddenRows.length);
+
+                if (processedCount === hiddenRows.length) {
+                    setTimeout(() => {
+                        const counts = getRowCounts();
+                        showToast(`All rows restored! ${counts.complete} rows with complete data 🌟`);
+                        thanosButton.disabled = false;
+                        hiddenRows = [];
+                    }, 2000);
+                }
+            }, index * 100);
+        });
+    }
+
+    // Add click event listeners
+    thanosButton.addEventListener('click', hideRows);
+    reverseButton.addEventListener('click', showRows);
+})();
