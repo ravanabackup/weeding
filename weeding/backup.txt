@@ -1,0 +1,338 @@
+// ==UserScript==
+// @name         Checkbox Backup and Restore
+// @namespace    http://tampermonkey.net/
+// @version      0.3
+// @description  Backup and restore checkbox states with copyable text
+// @match        http://10.145.22.11:8888/weed_catalogue.php
+// @grant        GM_setValue
+// @grant        GM_getValue
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Function to create a modal for displaying backup text
+    function createTextModal(text, isBackup = true) {
+        // Create modal background
+        const modalBg = document.createElement('div');
+        modalBg.style.position = 'fixed';
+        modalBg.style.top = '0';
+        modalBg.style.left = '0';
+        modalBg.style.width = '100%';
+        modalBg.style.height = '100%';
+        modalBg.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        modalBg.style.zIndex = '10000';
+        modalBg.style.display = 'flex';
+        modalBg.style.justifyContent = 'center';
+        modalBg.style.alignItems = 'center';
+
+        // Create modal content
+        const modalContent = document.createElement('div');
+        modalContent.style.backgroundColor = 'black';
+        modalContent.style.padding = '20px';
+        modalContent.style.borderRadius = '10px';
+        modalContent.style.width = '80%';
+        modalContent.style.maxHeight = '80%';
+        modalContent.style.overflow = 'auto';
+
+        // Create textarea for text
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.width = '100%';
+        textArea.style.height = '300px';
+        textArea.style.marginBottom = '10px';
+        textArea.style.resize = 'vertical';
+
+        // Create buttons container
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.style.display = 'flex';
+        buttonsContainer.style.justifyContent = 'space-between';
+
+        // Create copy button
+        const copyButton = document.createElement('button');
+        copyButton.textContent = 'Copy to Clipboard';
+        copyButton.style.padding = '10px';
+        copyButton.style.backgroundColor = '#2196F3';
+        copyButton.style.color = 'black';
+        copyButton.style.border = 'none';
+        copyButton.addEventListener('click', () => {
+            textArea.select();
+            document.execCommand('copy');
+            alert('Copied to clipboard!');
+        });
+
+        // Create close button
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.style.padding = '10px';
+        closeButton.style.backgroundColor = '#f44336';
+        closeButton.style.color = 'black';
+        closeButton.style.border = 'none';
+        closeButton.addEventListener('click', () => {
+            document.body.removeChild(modalBg);
+        });
+
+        // Create restore button (only for backup modal)
+        if (isBackup) {
+            const restoreButton = document.createElement('button');
+            restoreButton.textContent = 'Restore Checkboxes';
+            restoreButton.style.padding = '10px';
+            restoreButton.style.backgroundColor = '#4CAF50';
+            restoreButton.style.color = 'black';
+            restoreButton.style.border = 'none';
+            restoreButton.addEventListener('click', () => {
+                // Parse the input text
+                const backupText = textArea.value;
+                const checkedBoxes = backupText.split('---')
+                    .filter(entry => entry.trim())
+                    .map(entry => {
+                        const idMatch = entry.match(/ID: (.+)/);
+                        return idMatch ? idMatch[1] : null;
+                    })
+                    .filter(id => id);
+
+                // Restore checkboxes
+                checkedBoxes.forEach(id => {
+                    const checkbox = document.getElementById(id.trim());
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
+
+                // Close modal
+                document.body.removeChild(modalBg);
+            });
+            buttonsContainer.appendChild(restoreButton);
+        }
+
+        // Add buttons to container
+        buttonsContainer.appendChild(copyButton);
+        buttonsContainer.appendChild(closeButton);
+
+        // Assemble modal
+        modalContent.appendChild(textArea);
+        modalContent.appendChild(buttonsContainer);
+        modalBg.appendChild(modalContent);
+        document.body.appendChild(modalBg);
+    }
+
+    // Function to backup checkbox states
+    function backupCheckboxStates() {
+        // Find all checkboxes with select_ids class
+        const checkboxes = document.querySelectorAll('.select_ids');
+
+        // Create an array to store checked checkbox details
+        const checkedBoxes = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => {
+                // Try to get more context about the checked checkbox
+                const row = cb.closest('tr');
+                const caseDetails = row
+                    ? Array.from(row.querySelectorAll('td'))
+                        .map(td => td.textContent.trim())
+                        .join(' | ')
+                    : '';
+
+                return {
+                    id: cb.id,
+                    caseDetails: caseDetails
+                };
+            });
+
+        // Generate text output
+        const backupText = checkedBoxes.map(box =>
+            `ID: ${box.id}\nDetails: ${box.caseDetails}\n---`
+        ).join('\n');
+
+        // Save to local storage (optional)
+        GM_setValue('backupCheckboxStates', JSON.stringify(checkedBoxes));
+
+        // Show modal with backup text
+        createTextModal(backupText);
+    }
+
+    // Function to show restore modal
+    function showRestoreModal() {
+        // Create modal background
+        const modalBg = document.createElement('div');
+        modalBg.style.position = 'fixed';
+        modalBg.style.top = '0';
+        modalBg.style.left = '0';
+        modalBg.style.width = '100%';
+        modalBg.style.height = '100%';
+        modalBg.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        modalBg.style.zIndex = '10000';
+        modalBg.style.display = 'flex';
+        modalBg.style.justifyContent = 'center';
+        modalBg.style.alignItems = 'center';
+
+        // Create modal content
+        const modalContent = document.createElement('div');
+        modalContent.style.backgroundColor = 'black';
+        modalContent.style.padding = '20px';
+        modalContent.style.borderRadius = '10px';
+        modalContent.style.width = '80%';
+        modalContent.style.maxHeight = '80%';
+
+        // Create textarea for paste
+        const textArea = document.createElement('textarea');
+        textArea.placeholder = 'Paste your backup text here';
+        textArea.style.width = '100%';
+        textArea.style.height = '300px';
+        textArea.style.marginBottom = '10px';
+        textArea.style.resize = 'vertical';
+
+        // Create restore button
+        const restoreButton = document.createElement('button');
+        restoreButton.textContent = 'Restore Checkboxes';
+        restoreButton.style.padding = '10px';
+        restoreButton.style.backgroundColor = '#4CAF50';
+        restoreButton.style.color = 'black';
+        restoreButton.style.border = 'none';
+        restoreButton.style.marginRight = '10px';
+        restoreButton.addEventListener('click', () => {
+            // Parse the input text
+            const backupText = textArea.value;
+            const checkedBoxes = backupText.split('---')
+                .filter(entry => entry.trim())
+                .map(entry => {
+                    const idMatch = entry.match(/ID: (.+)/);
+                    return idMatch ? idMatch[1] : null;
+                })
+                .filter(id => id);
+
+            // Restore checkboxes
+            checkedBoxes.forEach(id => {
+                const checkbox = document.getElementById(id.trim());
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+
+            // Close modal
+            document.body.removeChild(modalBg);
+        });
+
+        // Create close button
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.style.padding = '10px';
+        closeButton.style.backgroundColor = '#f44336';
+        closeButton.style.color = 'black';
+        closeButton.style.border = 'none';
+        closeButton.addEventListener('click', () => {
+            document.body.removeChild(modalBg);
+        });
+
+        // Assemble modal
+        modalContent.appendChild(textArea);
+        modalContent.appendChild(restoreButton);
+        modalContent.appendChild(closeButton);
+        modalBg.appendChild(modalContent);
+        document.body.appendChild(modalBg);
+    }
+
+    // Function to create combined backup/restore button
+    function createBackupRestoreButton() {
+        const button = document.createElement('button');
+        button.innerHTML = '💾';
+        button.style.position = 'fixed';
+        button.style.bottom = '60px'; // Changed from top to bottom
+        button.style.right = '20px';  // Maintained right positioning
+        button.style.zIndex = '9999';
+        button.style.padding = '10px'; // Increased padding for better touch target
+        button.style.backgroundColor = '#4CAF50';
+        button.style.color = 'black';
+        button.style.border = 'none';
+        button.style.cursor = 'pointer';
+        button.style.display = 'flex';
+        button.style.alignItems = 'center';
+        button.style.gap = '5px';
+        button.style.borderRadius = '50px'; // Added rounded corners
+        button.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'; // Added subtle shadow
+
+        // Create dropdown menu
+        const dropdownMenu = document.createElement('div');
+        dropdownMenu.style.display = 'none';
+        dropdownMenu.style.position = 'absolute';
+        dropdownMenu.style.bottom = '100%'; // Changed from top to bottom
+        dropdownMenu.style.right = '0';
+        dropdownMenu.style.backgroundColor = 'black';
+        dropdownMenu.style.border = '1px solid #ddd';
+        dropdownMenu.style.borderRadius = '10px'; // Added rounded corners
+        dropdownMenu.style.boxShadow = '0 4px 6px rgba(0,0,0,0.2)';
+        dropdownMenu.style.zIndex = '10000';
+        dropdownMenu.style.overflow = 'hidden'; // Ensures rounded corners are visible
+
+        // Backup option
+        const backupOption = document.createElement('button');
+        backupOption.textContent = '💾 Backup Checked';
+        backupOption.style.display = 'block';
+        backupOption.style.width = '100%';
+        backupOption.style.padding = '10px';
+        backupOption.style.border = 'none';
+        backupOption.style.backgroundColor = 'black';
+        backupOption.style.textAlign = 'left';
+        backupOption.style.cursor = 'pointer';
+        backupOption.addEventListener('mouseenter', (e) => {
+            e.target.style.backgroundColor = '#f0f0f0';
+        });
+        backupOption.addEventListener('mouseleave', (e) => {
+            e.target.style.backgroundColor = 'black';
+        });
+        backupOption.addEventListener('click', () => {
+            backupCheckboxStates();
+            dropdownMenu.style.display = 'none';
+        });
+
+        // Restore option
+        const restoreOption = document.createElement('button');
+        restoreOption.textContent = '📋 Restore Checked';
+        restoreOption.style.display = 'block';
+        restoreOption.style.width = '100%';
+        restoreOption.style.padding = '10px';
+        restoreOption.style.border = 'none';
+        restoreOption.style.backgroundColor = 'black';
+        restoreOption.style.textAlign = 'left';
+        restoreOption.style.cursor = 'pointer';
+        restoreOption.addEventListener('mouseenter', (e) => {
+            e.target.style.backgroundColor = '#f0f0f0';
+        });
+        restoreOption.addEventListener('mouseleave', (e) => {
+            e.target.style.backgroundColor = 'black';
+        });
+        restoreOption.addEventListener('click', () => {
+            showRestoreModal();
+            dropdownMenu.style.display = 'none';
+        });
+
+        // Add options to dropdown
+        dropdownMenu.appendChild(backupOption);
+        dropdownMenu.appendChild(restoreOption);
+
+        // Create container for button and dropdown
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.bottom = '20px';
+        container.style.right = '20px';
+        container.style.zIndex = '9999';
+
+        // Toggle dropdown on button click
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdownMenu.style.display = dropdownMenu.style.display === 'none' ? 'block' : 'none';
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            dropdownMenu.style.display = 'none';
+        });
+
+        container.appendChild(dropdownMenu);
+        container.appendChild(button);
+        document.body.appendChild(container);
+    }
+
+    // Add button when page loads
+    window.addEventListener('load', createBackupRestoreButton);
+})();
