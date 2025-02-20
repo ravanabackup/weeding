@@ -1,0 +1,76 @@
+// ==UserScript==
+// @name         Remote Autofiller Loader
+// @namespace    http://tampermonkey.net/
+// @version      1.2
+// @description  Loads autofiller script dynamically from GitHub and verifies password, remembers password until PC restart
+// @author       You
+// @match        *://*/*
+// @grant        GM_xmlhttpRequest
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @run-at       document-start
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    const scriptUrls = [
+        'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/weeding/modular/autofiller.txt',
+        'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/weeding/modular/lite%20filter.txt'
+    ];
+    const keyUrl = 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/weeding/modular/key.txt';
+
+    function fetchAndExecute(url) {
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: url,
+            onload: function(response) {
+                if (response.status === 200) {
+                    const script = document.createElement('script');
+                    script.textContent = response.responseText;
+                    document.head.appendChild(script);
+                } else {
+                    console.error('Failed to load the remote script:', response.statusText);
+                }
+            },
+            onerror: function(error) {
+                console.error('Error fetching the remote script:', error);
+            }
+        });
+    }
+
+    function verifyPassword(password) {
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: keyUrl,
+            onload: function(response) {
+                if (response.status === 200) {
+                    const correctPassword = response.responseText.trim();
+                    if (password === correctPassword) {
+                        GM_setValue('verifiedPassword', password);
+                        scriptUrls.forEach(fetchAndExecute);
+                    } else {
+                        alert('Incorrect password!');
+                    }
+                } else {
+                    console.error('Failed to fetch the password:', response.statusText);
+                }
+            },
+            onerror: function(error) {
+                console.error('Error fetching the password:', error);
+            }
+        });
+    }
+
+    const savedPassword = GM_getValue('verifiedPassword', null);
+    if (savedPassword) {
+        scriptUrls.forEach(fetchAndExecute);
+    } else {
+        const userPassword = prompt('Enter password:');
+        if (userPassword) {
+            verifyPassword(userPassword);
+        } else {
+            alert('Password is required to run the script.');
+        }
+    }
+})();
