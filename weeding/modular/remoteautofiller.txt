@@ -1,0 +1,33 @@
+// ==UserScript==
+// @name         Remote Autofiller Loader
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Loads autofiller script dynamically from GitHub
+// @author       You
+// @match        *://*/*
+// @grant        GM_xmlhttpRequest
+// @run-at       document-start
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    const scriptUrl = 'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/weeding/modular/autofiller.txt';
+
+    GM_xmlhttpRequest({
+        method: 'GET',
+        url: scriptUrl,
+        onload: function(response) {
+            if (response.status === 200) {
+                const script = document.createElement('script');
+                script.textContent = response.responseText;
+                document.head.appendChild(script);
+            } else {
+                console.error('Failed to load the remote script:', response.statusText);
+            }
+        },
+        onerror: function(error) {
+            console.error('Error fetching the remote script:', error);
+        }
+    });
+})();
