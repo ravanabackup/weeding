@@ -1,0 +1,171 @@
+// ==UserScript==
+// @name         Lightweight Row Hide/Show Effect
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Lightweight version for hiding/showing completed rows
+// @author       You
+// @match        http://10.145.22.11:8888/weed_catalogue.php
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Simplified styles with minimal animations
+    const style = document.createElement('style');
+    style.textContent = `
+        .button-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .action-button {
+            padding: 8px 16px;
+            background-color: #7b2cbf;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        .action-button:disabled {
+            background-color: #cccccc;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px;
+            background-color: #2196F3;
+            color: white;
+            border-radius: 4px;
+            z-index: 10000;
+        }
+
+        .hidden {
+            display: none;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Create UI elements
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'button-container';
+
+    const hideButton = document.createElement('button');
+    hideButton.className = 'action-button';
+    hideButton.textContent = 'Hide Complete';
+    buttonContainer.appendChild(hideButton);
+
+    document.body.appendChild(buttonContainer);
+
+    // Store hidden rows data (minimal storage)
+    let hiddenRowsData = [];
+
+    // Simplified row completion check
+    function isRowComplete(row) {
+        if (!row || !row.cells) return false;
+
+        const locationSelect = row.querySelector('select');
+        const inputs = row.querySelectorAll('input[type="text"]');
+        const checkbox = row.querySelector('input[type="checkbox"]');
+
+        return locationSelect?.value &&
+               locationSelect.value !== '0' &&
+               locationSelect.value !== 'Select Location' &&
+               Array.from(inputs).every(input => {
+                   const val = input.value.trim();
+                   return val && val !== '0' && val !== '-';
+               }) &&
+               (!checkbox || !checkbox.checked);
+    }
+
+    // Simplified toast notification
+    function showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Hide complete rows
+    function hideRows() {
+        const rows = Array.from(document.querySelectorAll('table tr')).slice(1);
+        const completeRows = rows.filter(isRowComplete);
+
+        if (completeRows.length === 0) {
+            showToast('No complete rows to hide');
+            return;
+        }
+
+        hideButton.disabled = true;
+
+        // Store and hide rows without animation
+        completeRows.forEach(row => {
+            const inputs = row.querySelectorAll('input, select');
+            const data = Array.from(inputs).map(input => ({
+                id: input.id || input.name,
+                value: input.type === 'checkbox' ? input.checked : input.value
+            }));
+
+            hiddenRowsData.push({
+                data: data,
+                index: Array.from(row.parentNode.children).indexOf(row)
+            });
+
+            row.classList.add('hidden');
+        });
+
+        showToast(`Hidden ${completeRows.length} complete rows`);
+        hideButton.textContent = 'Show Rows';
+        hideButton.disabled = false;
+    }
+
+    // Show hidden rows
+    function showRows() {
+        if (hiddenRowsData.length === 0) {
+            showToast('No hidden rows to show');
+            return;
+        }
+
+        hideButton.disabled = true;
+
+        // Remove 'hidden' class from all rows
+        document.querySelectorAll('.hidden').forEach(row => {
+            row.classList.remove('hidden');
+        });
+
+        // Restore input values
+        hiddenRowsData.forEach(({ data }) => {
+            data.forEach(({ id, value }) => {
+                const input = document.querySelector(`#${id}, [name="${id}"]`);
+                if (input) {
+                    if (input.type === 'checkbox') {
+                        input.checked = value;
+                    } else {
+                        input.value = value;
+                    }
+                }
+            });
+        });
+
+        hiddenRowsData = [];
+        showToast('All rows restored');
+        hideButton.textContent = 'Hide Complete';
+        hideButton.disabled = false;
+    }
+
+    // Toggle between hide and show
+    hideButton.addEventListener('click', () => {
+        if (hiddenRowsData.length === 0) {
+            hideRows();
+        } else {
+            showRows();
+        }
+    });
+})();
