@@ -67,8 +67,8 @@
 
     function updateHeartButtonState(heartButton) {
         const currentState = state.isDataLoaded ?
-            { symbol: '✔️', color: '#000000' } :
-            { symbol: '❌', color: '#000000' };
+            { symbol: 'Added', color: '#000000' } :
+            { symbol: 'Empty', color: '#000000' };
         heartButton.innerHTML = currentState.symbol;
         heartButton.style.color = currentState.color;
     }
