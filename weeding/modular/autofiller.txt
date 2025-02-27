@@ -30,7 +30,7 @@
     function createHeartButton() {
         const heartButton = document.createElement('span');
         Object.assign(heartButton.style, {
-            fontSize: '30px',
+            fontSize: '10px',
             cursor: 'pointer',
             position: 'fixed',
             bottom: '-10px',
