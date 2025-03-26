@@ -1,0 +1,67 @@
+// ==UserScript==
+// @name         Lightweight High Court Date Picker
+// @namespace    Sajin M. Simon
+// @version      1.1
+// @description  Minimal date picker for High Court interface with Enter key search
+// @author       Sajin M. Simon
+// @match        *://10.145.22.11:8888/weed_catalogue.php*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    var btn = document.createElement('button');
+    btn.textContent = '*';  // Using text instead of emoji for older browsers
+    btn.style.cssText = 'position:fixed;bottom:90px;left:10px;z-index:9999;padding:4px;background:#000;color:#fff;cursor:pointer';
+
+    btn.onclick = function(e) {
+        e.stopPropagation();
+        var old = document.getElementById('dp');
+        if (old) {
+            old.remove();
+            return;
+        }
+
+        var input = document.createElement('input');
+        input.type = 'date';
+        input.id = 'dp';
+        input.style.cssText = 'position:fixed;bottom:130px;left:10px;z-index:10000';
+
+        var fromDate = document.querySelector('input[name="f_date"]');
+        if (fromDate && fromDate.value) {
+            var parts = fromDate.value.split('/');
+            input.value = parts[2] + '-' + parts[1] + '-' + parts[0];
+        }
+
+        input.onkeydown = function(event) {
+            // Only trigger search when Enter key is pressed
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Prevent default Enter key behavior
+                
+                var date = new Date(this.value);
+                var day = ('0' + date.getDate()).slice(-2);
+                var month = ('0' + (date.getMonth() + 1)).slice(-2);
+                var year = date.getFullYear();
+                var formatted = day + '/' + month + '/' + year;
+
+                var from = document.querySelector('input[name="f_date"]');
+                var to = document.querySelector('input[name="t_date"]');
+                if (from) from.value = formatted;
+                if (to) to.value = formatted;
+
+                var submit = document.querySelector('.btn.btn-success');
+                if (submit) submit.click();
+
+                // Optional: Remove the date input after search
+                this.remove();
+            }
+        };
+
+        document.body.appendChild(input);
+        input.focus(); // Automatically focus the input when it appears
+    };
+
+    if (document.body) document.body.appendChild(btn);
+    else document.addEventListener('DOMContentLoaded', function() {
+        document.body.appendChild(btn);
+    });
+})();
