@@ -16,13 +16,13 @@
         const searchContainer = document.createElement('div');
         Object.assign(searchContainer.style, {
             position: 'fixed',
-            top: '10px',
+            top: '40px',
             right: '10px',
             zIndex: '9999',
             display: 'flex',
             gap: '10px',
             alignItems: 'center',
-            background: 'black',
+            background: '#337ab7',
             padding: '10px',
             borderRadius: '4px',
             boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
@@ -31,9 +31,12 @@
         const searchInput = document.createElement('input');
         Object.assign(searchInput.style, {
             padding: '5px 10px',
-            borderRadius: '4px',
+            borderRadius: '2px',
             border: '1px solid #ddd',
-            width: '200px'
+            background: '#337ab7',
+            width: '200px',
+            color: 'white',
+            fontWeight: 'bold'
         });
         searchInput.placeholder = 'Search Case ID...';
         searchInput.id = 'caseIdSearch';
@@ -43,8 +46,9 @@
             padding: '5px 10px',
             borderRadius: '4px',
             border: '1px solid #ddd',
-            background: 'white',
-            cursor: 'pointer'
+            background: '#1e5a8a', // Darker shade
+            cursor: 'pointer',
+            color: 'white'
         });
         clearButton.textContent = 'Clear';
         clearButton.onclick = () => {
