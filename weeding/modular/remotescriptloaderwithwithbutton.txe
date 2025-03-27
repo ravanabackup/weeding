@@ -1,0 +1,68 @@
+// ==UserScript==
+// @name         Remote Autofiller Loader
+// @namespace    http://tampermonkey.net/
+// @version      1.4
+// @description  Loads autofiller script dynamically from GitHub and toggles with keyboard keys
+// @author       You
+// @match        http://10.145.22.11:8888/weed_catalogue.php
+// @grant        GM_xmlhttpRequest
+// @run-at       document-start
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    const scriptUrls = [
+        'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/weeding/modular/autofiller.txt',
+        'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/weeding/modular/lite%20date%20picker%20new.txt',
+        'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/weeding/modular/lite%20thanos.txt',
+        'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/weeding/modular/lite%20webpage.txt',
+        'https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/weeding/modular/lite%20filter.txt'
+    ];
+
+    let scriptsLoaded = false;
+
+    function fetchAndExecute(url) {
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: url,
+            onload: function(response) {
+                if (response.status === 200) {
+                    const script = document.createElement('script');
+                    script.textContent = response.responseText;
+                    script.setAttribute('data-remote-script', 'true');
+                    document.head.appendChild(script);
+                } else {
+                    console.error('Failed to load the remote script:', response.statusText);
+                }
+            },
+            onerror: function(error) {
+                console.error('Error fetching the remote script:', error);
+            }
+        });
+    }
+
+    function toggleScripts(enable) {
+        if (enable) {
+            if (!scriptsLoaded) {
+                scriptUrls.forEach(fetchAndExecute);
+                scriptsLoaded = true;
+                console.log('Scripts enabled');
+            }
+        } else {
+            if (scriptsLoaded) {
+                document.querySelectorAll('script[data-remote-script="true"]').forEach(script => script.remove());
+                scriptsLoaded = false;
+                console.log('Scripts disabled');
+            }
+        }
+    }
+
+    window.addEventListener('keydown', (event) => {
+        if (event.key === '\\') {
+            toggleScripts(true);
+        } else if (event.key === '*') {
+            toggleScripts(false);
+        }
+    });
+})();
