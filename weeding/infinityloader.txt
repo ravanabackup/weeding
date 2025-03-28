@@ -1,0 +1,57 @@
+// ==UserScript==
+// @name         Weeding Catalogue Infinite Loader
+// @namespace    http://tampermonkey.net/
+// @version      0.1
+// @description  Intercept submit button and show infinite loading
+// @match        http://10.145.22.11:8888/weed_catalogue.php
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Function to freeze all buttons and inputs
+    function freezeUI() {
+        document.querySelectorAll('button, input[type="button"], input[type="submit"]').forEach(el => {
+            el.disabled = true;
+        });
+    }
+
+    // Add right-click event listener to the submit buttons
+    document.querySelectorAll('button[name="btn_diary"]').forEach(button => {
+        button.addEventListener('contextmenu', function(e) {
+            e.preventDefault(); // Prevent default right-click menu
+
+            // Clear any existing output
+            const outputDiv = document.getElementById('output');
+            if (outputDiv) {
+                outputDiv.innerHTML = '';
+            }
+
+            // Show loader
+            const loader = document.getElementById('loader');
+            if (loader) {
+                loader.style.display = 'block';
+                loader.style.position = 'fixed';
+                loader.style.top = '0';
+                loader.style.left = '0';
+                loader.style.width = '100%';
+                loader.style.height = '100%';
+                loader.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+                loader.style.zIndex = '9999';
+
+                // Ensure loading gif is centered
+                const spinnerDiv = loader.querySelector('.spinner');
+                if (spinnerDiv) {
+                    spinnerDiv.style.position = 'absolute';
+                    spinnerDiv.style.top = '50%';
+                    spinnerDiv.style.left = '50%';
+                    spinnerDiv.style.transform = 'translate(-50%, -50%)';
+                }
+            }
+
+            // Freeze UI
+            freezeUI();
+        });
+    });
+})();
