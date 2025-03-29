@@ -1,14 +1,19 @@
 // ==UserScript==
 // @name         Weeding Catalogue Infinite Loader
 // @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  Intercept submit button and show infinite loading
+// @version      0.5
+// @description  Show loader below buttons, triggered by right-click or period key
 // @match        http://10.145.22.11:8888/weed_catalogue.php
 // @grant        none
 // ==/UserScript==
 
 (function() {
     'use strict';
+
+    let loadingActive = false;
+    let dismissTimer = null;
+    let dotTimer = null;
+    const maxDots = 6;  // Maximum number of dots for a 60 seconds timer
 
     // Function to freeze all buttons and inputs
     function freezeUI() {
@@ -17,41 +22,161 @@
         });
     }
 
+    // Function to unfreeze all buttons and inputs
+    function unfreezeUI() {
+        document.querySelectorAll('button, input[type="button"], input[type="submit"]').forEach(el => {
+            el.disabled = false;
+        });
+    }
+
+    // Function to create or get loader element
+    function getLoaderElement() {
+        let loader = document.getElementById('loader');
+
+        if (!loader) {
+            loader = document.createElement('div');
+            loader.id = 'loader';
+            loader.style.display = 'none';
+            loader.style.marginTop = '20px';
+            loader.style.textAlign = 'center';
+
+            const spinnerDiv = document.createElement('div');
+            spinnerDiv.className = 'spinner';
+            spinnerDiv.innerHTML = 'Loading...';
+            spinnerDiv.style.fontSize = '18px';
+
+            // Create spinning animation
+            const spinner = document.createElement('div');
+            spinner.style.border = '5px solid #f3f3f3';
+            spinner.style.borderTop = '5px solid #3498db';
+            spinner.style.borderRadius = '50%';
+            spinner.style.width = '50px';
+            spinner.style.height = '50px';
+            spinner.style.animation = 'spin 2s linear infinite';
+            spinner.style.margin = '10px auto';
+
+            // Add the animation style
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+
+            spinnerDiv.prepend(spinner);
+            loader.appendChild(spinnerDiv);
+
+            // Append loader after the last button
+            const lastButton = document.querySelector('button[name="btn_diary"]');
+            if (lastButton && lastButton.parentNode) {
+                lastButton.parentNode.appendChild(loader);
+            } else {
+                document.body.appendChild(loader);
+            }
+        }
+
+        return loader;
+    }
+
+    // Function to update the header text with dots
+    function updateHeaderText(duration) {
+        const header = document.querySelector('.panel-heading');
+        const highCourtText = 'High Court of Punjab & Haryana, Chandigarh';
+        const totalDots = Math.floor(duration / 10);
+        let currentDots = totalDots;
+
+        dotTimer = setInterval(() => {
+            if (currentDots > 0) {
+                header.innerHTML = `${highCourtText}${' .'.repeat(currentDots)}`;
+                currentDots--;
+            } else {
+                clearInterval(dotTimer);
+            }
+        }, 10000); // Update every 10 seconds
+    }
+
+    // Function to handle showing the loader
+    function showLoader(duration) {
+        if (dismissTimer) {
+            clearTimeout(dismissTimer);
+        }
+
+        if (dotTimer) {
+            clearInterval(dotTimer);
+        }
+
+        // Clear any existing output
+        const outputDiv = document.getElementById('output');
+        if (outputDiv) {
+            outputDiv.innerHTML = '';
+        }
+
+        // Show loader
+        const loader = getLoaderElement();
+        loader.style.display = 'block';
+
+        // Freeze UI
+        freezeUI();
+
+        loadingActive = true;
+
+        // Set a timer to dismiss the loader after the specified duration
+        dismissTimer = setTimeout(() => {
+            hideLoader();
+        }, duration);
+
+        // Update header text with dots
+        updateHeaderText(duration / 1000);
+    }
+
+    // Function to hide the loader
+    function hideLoader() {
+        const loader = document.getElementById('loader');
+        if (loader) {
+            loader.style.display = 'none';
+        }
+
+        // Unfreeze UI
+        unfreezeUI();
+
+        loadingActive = false;
+
+        // Clear the dismiss timer if it exists
+        if (dismissTimer) {
+            clearTimeout(dismissTimer);
+            dismissTimer = null;
+        }
+
+        // Clear the dot timer if it exists
+        if (dotTimer) {
+            clearInterval(dotTimer);
+            dotTimer = null;
+        }
+
+        // Restore the original header text
+        const header = document.querySelector('.panel-heading');
+        if (header) {
+            header.innerHTML = 'High Court of Punjab & Haryana, Chandigarh';
+        }
+    }
+
     // Add right-click event listener to the submit buttons
     document.querySelectorAll('button[name="btn_diary"]').forEach(button => {
         button.addEventListener('contextmenu', function(e) {
             e.preventDefault(); // Prevent default right-click menu
-
-            // Clear any existing output
-            const outputDiv = document.getElementById('output');
-            if (outputDiv) {
-                outputDiv.innerHTML = '';
-            }
-
-            // Show loader
-            const loader = document.getElementById('loader');
-            if (loader) {
-                loader.style.display = 'block';
-                loader.style.position = 'fixed';
-                loader.style.top = '0';
-                loader.style.left = '0';
-                loader.style.width = '100%';
-                loader.style.height = '100%';
-                loader.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
-                loader.style.zIndex = '9999';
-
-                // Ensure loading gif is centered
-                const spinnerDiv = loader.querySelector('.spinner');
-                if (spinnerDiv) {
-                    spinnerDiv.style.position = 'absolute';
-                    spinnerDiv.style.top = '50%';
-                    spinnerDiv.style.left = '50%';
-                    spinnerDiv.style.transform = 'translate(-50%, -50%)';
-                }
-            }
-
-            // Freeze UI
-            freezeUI();
+            showLoader(60000); // Set duration to 60 seconds (1 minute)
         });
     });
+
+    // Add keyboard event listener for "." key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === '.') {
+            showLoader(60000); // Set duration to 60 seconds (1 minute)
+        }
+    });
+
+    // Initialize the loader element
+    getLoaderElement();
 })();
