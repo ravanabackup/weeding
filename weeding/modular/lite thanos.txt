@@ -66,6 +66,9 @@
     // Store hidden rows data (minimal storage)
     let hiddenRowsData = [];
 
+    // Track if rows are currently hidden
+    let rowsHidden = false;
+
     // Simplified row completion check
     function isRowComplete(row) {
         if (!row || !row.cells) return false;
@@ -91,6 +94,15 @@
         toast.textContent = message;
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Reset only the button to initial state (not affecting rows)
+    function resetButtonOnly() {
+        // Reset button state to initial
+        hideButton.textContent = 'Hide Complete';
+        hideButton.disabled = false;
+
+        showToast('Button reset - rows remain in current state');
     }
 
     // Hide complete rows
@@ -121,6 +133,7 @@
             row.classList.add('hidden');
         });
 
+        rowsHidden = true;
         showToast(`Hidden ${completeRows.length} complete rows`);
         hideButton.textContent = 'Show Rows';
         hideButton.disabled = false;
@@ -155,12 +168,13 @@
         });
 
         hiddenRowsData = [];
+        rowsHidden = false;
         showToast('All rows restored');
         hideButton.textContent = 'Hide Complete';
         hideButton.disabled = false;
     }
 
-    // Toggle between hide and show
+    // Toggle between hide and show based on button click
     hideButton.addEventListener('click', () => {
         if (hiddenRowsData.length === 0) {
             hideRows();
@@ -168,4 +182,97 @@
             showRows();
         }
     });
+
+    // Add event listener for the submit button click
+    function addSubmitButtonListener() {
+        // Find the submit button by its attributes
+        const submitButton = document.querySelector('button[name="btn_diary"][onclick*="verify_request"]');
+        if (submitButton) {
+            // Store the original onclick function
+            const originalOnClick = submitButton.onclick;
+
+            // Override the onclick event
+            submitButton.onclick = function(event) {
+                // Reset our hide/show button
+                if (hideButton.textContent === 'Show Rows') {
+                    resetButtonOnly();
+                }
+
+                // Call the original onclick function
+                if (typeof originalOnClick === 'function') {
+                    return originalOnClick.call(this, event);
+                } else if (typeof originalOnClick === 'string') {
+                    return eval(originalOnClick);
+                }
+            };
+
+            console.log('Submit button listener added successfully');
+        } else {
+            // If button not found immediately, try again after a short delay
+            setTimeout(addSubmitButtonListener, 1000);
+            console.log('Submit button not found, retrying...');
+        }
+    }
+
+    // Handle the case where the submit button might be added dynamically
+    function setupMutationObserver() {
+        // Initial attempt to find the button
+        addSubmitButtonListener();
+
+        // Watch for DOM changes to catch if the button is added later
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                    // Check if our submit button has been added
+                    const submitButton = document.querySelector('button[name="btn_diary"][onclick*="verify_request"]');
+                    if (submitButton && !submitButton._listenerAdded) {
+                        addSubmitButtonListener();
+                        submitButton._listenerAdded = true;
+                    }
+                }
+            });
+        });
+
+        // Start observing the document with the configured parameters
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    // Initialize the observer
+    setupMutationObserver();
+
+    // Alternative approach: Intercept the verify_request function
+    if (typeof window.verify_request === 'function') {
+        const originalVerifyRequest = window.verify_request;
+        window.verify_request = function(id) {
+            // Reset our hide/show button
+            if (hideButton.textContent === 'Show Rows') {
+                resetButtonOnly();
+            }
+
+            // Call the original function
+            return originalVerifyRequest.call(this, id);
+        };
+        console.log('verify_request function intercepted');
+    } else {
+        // The function might be defined later, so we watch for it
+        Object.defineProperty(window, 'verify_request', {
+            configurable: true,
+            enumerable: true,
+            get: function() {
+                return this._verify_request;
+            },
+            set: function(newFunc) {
+                this._verify_request = function(id) {
+                    // Reset our hide/show button
+                    if (hideButton.textContent === 'Show Rows') {
+                        resetButtonOnly();
+                    }
+
+                    // Call the new function
+                    return newFunc.call(this, id);
+                };
+            }
+        });
+        console.log('verify_request property interceptor set');
+    }
 })();
