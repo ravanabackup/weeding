@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL to Base64 Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .tab-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #eee;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .tab-content {
+            display: none;
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 0 5px 5px 5px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+            font-family: monospace;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result-container {
+            margin-top: 20px;
+        }
+        .copy-btn {
+            background-color: #28a745;
+            margin-left: 10px;
+        }
+        .copy-btn:hover {
+            background-color: #218838;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9f7fe;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>URL to Base64 Converter</h1>
+        
+        <div class="tab-container">
+            <div class="tab active" id="encode-tab">URL to Base64</div>
+            <div class="tab" id="decode-tab">Base64 to URL</div>
+        </div>
+        
+        <div class="tab-content active" id="encode-content">
+            <h3>Enter URLs (one per line)</h3>
+            <textarea id="url-input" placeholder="https://example.com/path/file.txt
+https://another-example.com/folder/document.pdf"></textarea>
+            <button id="encode-button">Convert to Base64</button>
+            <button id="encode-clear" class="copy-btn">Clear</button>
+            
+            <div class="result-container">
+                <h3>Result</h3>
+                <textarea id="encode-result" readonly></textarea>
+                <button id="encode-copy" class="copy-btn">Copy Result</button>
+                <div id="encode-error" class="error"></div>
+            </div>
+            
+            <div class="info">
+                <p>This tool converts URLs to Base64 format and adds the filename as a comment.</p>
+                <p>Each URL will be converted to a format like: 'base64-encoded-url', // filename.extension</p>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="decode-content">
+            <h3>Enter Base64 URLs</h3>
+            <textarea id="base64-input" placeholder="'aHR0cHM6Ly9leGFtcGxlLmNvbS9wYXRoL2ZpbGUudHh0', // file.txt
+'aHR0cHM6Ly9hbm90aGVyLWV4YW1wbGUuY29tL2ZvbGRlci9kb2N1bWVudC5wZGY=', // document.pdf"></textarea>
+            <button id="decode-button">Convert to URL</button>
+            <button id="decode-clear" class="copy-btn">Clear</button>
+            
+            <div class="result-container">
+                <h3>Result</h3>
+                <textarea id="decode-result" readonly></textarea>
+                <button id="decode-copy" class="copy-btn">Copy Result</button>
+                <div id="decode-error" class="error"></div>
+            </div>
+            
+            <div class="info">
+                <p>This tool decodes Base64-encoded URLs back to their original form.</p>
+                <p>It ignores any comments or text after the Base64 string.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab functionality
+        document.getElementById('encode-tab').addEventListener('click', function() {
+            document.getElementById('encode-tab').classList.add('active');
+            document.getElementById('decode-tab').classList.remove('active');
+            document.getElementById('encode-content').classList.add('active');
+            document.getElementById('decode-content').classList.remove('active');
+        });
+        
+        document.getElementById('decode-tab').addEventListener('click', function() {
+            document.getElementById('decode-tab').classList.add('active');
+            document.getElementById('encode-tab').classList.remove('active');
+            document.getElementById('decode-content').classList.add('active');
+            document.getElementById('encode-content').classList.remove('active');
+        });
+        
+        // Encode functionality
+        document.getElementById('encode-button').addEventListener('click', function() {
+            const urlInput = document.getElementById('url-input').value.trim();
+            const resultArea = document.getElementById('encode-result');
+            const errorArea = document.getElementById('encode-error');
+            
+            errorArea.textContent = '';
+            resultArea.value = '';
+            
+            if (!urlInput) {
+                errorArea.textContent = 'Please enter at least one URL.';
+                return;
+            }
+            
+            const urls = urlInput.split('\n').filter(url => url.trim());
+            const results = [];
+            
+            for (const url of urls) {
+                try {
+                    const encodedUrl = btoa(url.trim());
+                    
+                    // Extract filename from URL
+                    let filename = '';
+                    try {
+                        const urlObj = new URL(url.trim());
+                        const pathParts = urlObj.pathname.split('/');
+                        filename = pathParts[pathParts.length - 1];
+                        if (!filename) filename = 'index';
+                    } catch (e) {
+                        // If URL parsing fails, try to extract from the path
+                        const pathParts = url.trim().split('/');
+                        filename = pathParts[pathParts.length - 1];
+                    }
+                    
+                    results.push(`'${encodedUrl}', // ${filename}`);
+                } catch (e) {
+                    errorArea.textContent += `Error encoding URL: ${url} - ${e.message}\n`;
+                }
+            }
+            
+            resultArea.value = results.join('\n');
+        });
+        
+        // Decode functionality
+        document.getElementById('decode-button').addEventListener('click', function() {
+            const base64Input = document.getElementById('base64-input').value.trim();
+            const resultArea = document.getElementById('decode-result');
+            const errorArea = document.getElementById('decode-error');
+            
+            errorArea.textContent = '';
+            resultArea.value = '';
+            
+            if (!base64Input) {
+                errorArea.textContent = 'Please enter at least one Base64 URL.';
+                return;
+            }
+            
+            // Split by new lines
+            const base64Lines = base64Input.split('\n').filter(line => line.trim());
+            const results = [];
+            
+            for (const line of base64Lines) {
+                try {
+                    // Extract Base64 part from the line
+                    // This regex looks for anything between single or double quotes
+                    const match = line.match(/['"]([^'"]+)['"]/);
+                    
+                    if (match && match[1]) {
+                        const base64Str = match[1];
+                        const url = atob(base64Str);
+                        results.push(url);
+                    } else {
+                        // If no quotes, try to use the whole line or first part before a comment
+                        const parts = line.split('//')[0].trim();
+                        if (parts) {
+                            // Remove any commas or quotes
+                            const cleanBase64 = parts.replace(/['",]/g, '').trim();
+                            const url = atob(cleanBase64);
+                            results.push(url);
+                        }
+                    }
+                } catch (e) {
+                    errorArea.textContent += `Error decoding line: ${line} - ${e.message}\n`;
+                }
+            }
+            
+            resultArea.value = results.join('\n');
+        });
+        
+        // Copy buttons
+        document.getElementById('encode-copy').addEventListener('click', function() {
+            const resultArea = document.getElementById('encode-result');
+            resultArea.select();
+            document.execCommand('copy');
+            alert('Result copied to clipboard!');
+        });
+        
+        document.getElementById('decode-copy').addEventListener('click', function() {
+            const resultArea = document.getElementById('decode-result');
+            resultArea.select();
+            document.execCommand('copy');
+            alert('Result copied to clipboard!');
+        });
+        
+        // Clear buttons
+        document.getElementById('encode-clear').addEventListener('click', function() {
+            document.getElementById('url-input').value = '';
+            document.getElementById('encode-result').value = '';
+            document.getElementById('encode-error').textContent = '';
+        });
+        
+        document.getElementById('decode-clear').addEventListener('click', function() {
+            document.getElementById('base64-input').value = '';
+            document.getElementById('decode-result').value = '';
+            document.getElementById('decode-error').textContent = '';
+        });
+    </script>
+</body>
+</html>
