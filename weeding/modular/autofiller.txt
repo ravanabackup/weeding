@@ -101,9 +101,9 @@
 
     async function promptForValues() {
         const prompts = [
-            { field: 'batchNo', message: 'Please enter Batch number:' },
-            { field: 'rackNo', message: 'Please enter Rack number:' },
-            { field: 'shelfNo', message: 'Please enter Shelf number:' }
+            { field: 'batchNo', message: 'Please enter Batch number (1):' },
+            { field: 'rackNo', message: 'Please enter Rack number (2):' },
+            { field: 'shelfNo', message: 'Please enter Shelf number (3):' }
         ];
 
         for (const prompt of prompts) {
