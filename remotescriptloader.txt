@@ -1,0 +1,141 @@
+// ==UserScript==
+// @name         Remote Autofiller Loader Enhanced
+// @namespace    http://tampermonkey.net/
+// @version      1.5
+// @description  Loads specific autofiller scripts based on the current webpage URL with keyboard trigger for weed_catalogue
+// @author       You
+// @match        http://10.145.22.11:8888/weed_catalogue.php
+// @match        http://10.145.22.11:8888/report_catalogue.php
+// @match        http://10.145.22.11:8888/enq_caseno.orcl
+// @grant        GM_xmlhttpRequest
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @run-at       document-start
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Define script URLs for each page (converted to Base64)
+    const scriptConfig = {
+        'weed_catalogue.php': [
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvYXV0b2ZpbGxlci50eHQ=', // autofiller.txt
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMGRhdGUlMjBwaWNrZXIlMjBuZXcudHh0', // lite date picker new.txt
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMHRoYW5vcy50eHQ=', // lite thanos.txt
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMHdlYnBhZ2UudHh0', // lite webpage.txt
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL2luZmluaXR5bG9hZGVyLnR4dA==', // infinityloader.txt
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMGZpbHRlci50eHQ=' // lite filter.txt
+        ],
+        'report_catalogue.php': [
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL3JlcG9ydF9jYXRhbG9ndWVfbWFudWFsYW5kYXV0b21hdGljLnR4dA==' // report_catalogue_manualandautomatic.txt
+        ],
+        'enq_caseno.orcl': [
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvcXVlcnlkYXJrLnR4dA==' // querydark.txt
+        ]
+    };
+
+    // Encrypted key URL (Base64)
+    const encryptedKeyUrl = 'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIva2V5LnR4dA=='; // key.txt
+
+    // Function to decrypt Base64
+    function decryptBase64(str) {
+        return atob(str);
+    }
+
+    // Determine which page we're on
+    const currentPath = window.location.pathname;
+    const pageKey = Object.keys(scriptConfig).find(key => currentPath.includes(key));
+
+    if (!pageKey) {
+        console.error('No scripts configured for this page:', currentPath);
+        return;
+    }
+
+    const scriptsToLoad = scriptConfig[pageKey];
+
+    function fetchAndExecute(encodedUrl) {
+        const url = decryptBase64(encodedUrl);
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: url,
+            onload: function(response) {
+                if (response.status === 200) {
+                    const script = document.createElement('script');
+                    script.textContent = response.responseText;
+                    document.head.appendChild(script);
+                    console.log('Successfully loaded:', url);
+                } else {
+                    console.error('Failed to load the remote script:', url, response.statusText);
+                }
+            },
+            onerror: function(error) {
+                console.error('Error fetching the remote script:', url, error);
+            }
+        });
+    }
+
+    function verifyPassword(password) {
+        // Decrypt the key URL before using it
+        const keyUrl = decryptBase64(encryptedKeyUrl);
+
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: keyUrl,
+            onload: function(response) {
+                if (response.status === 200) {
+                    const correctPassword = response.responseText.trim();
+                    if (password === correctPassword) {
+                        GM_setValue('verifiedPassword', password);
+
+                        // For weed_catalogue.php, set up keyboard listener instead of loading scripts immediately
+                        if (pageKey === 'weed_catalogue.php') {
+                            setupBackslashListener();
+                            console.log('Password verified. Press \\ key to load scripts.');
+                        } else {
+                            // For other pages, load scripts immediately
+                            scriptsToLoad.forEach(fetchAndExecute);
+                        }
+                    } else {
+                        alert('Incorrect password!');
+                    }
+                } else {
+                    console.error('Failed to fetch the password:', response.statusText);
+                }
+            },
+            onerror: function(error) {
+                console.error('Error fetching the password:', error);
+            }
+        });
+    }
+
+    function setupBackslashListener() {
+        document.addEventListener('keydown', function(event) {
+            // Check if the pressed key is backslash (\)
+            if (event.key === '\\' || event.keyCode === 220) {
+                console.log('Backslash key pressed. Loading scripts...');
+                scriptsToLoad.forEach(fetchAndExecute);
+                // Remove the event listener so scripts only load once
+                document.removeEventListener('keydown', arguments.callee);
+            }
+        });
+    }
+
+    const savedPassword = GM_getValue('verifiedPassword', null);
+    if (savedPassword) {
+        // For weed_catalogue.php, set up keyboard listener
+        if (pageKey === 'weed_catalogue.php') {
+            setupBackslashListener();
+            console.log('Password already verified. Press \\ key to load scripts.');
+        } else {
+            // For other pages, load scripts immediately
+            scriptsToLoad.forEach(fetchAndExecute);
+        }
+    } else {
+        const userPassword = prompt('Enter password:');
+        if (userPassword) {
+            verifyPassword(userPassword);
+        } else {
+            alert('Password is required to run the script.');
+        }
+    }
+})();
