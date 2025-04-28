@@ -1,0 +1,407 @@
+// ==UserScript==
+// @name         Case Latest Date Finder - Enhanced
+// @namespace    http://tampermonkey.net/
+// @version      2.1
+// @description  Find latest date in specific case detail sections with beautiful visual display
+// @match        http://10.145.22.11:8888/enq_caseno.orcl?var1=CWP&var2=222&var3=2024
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Define the specific sections we want to search
+    const RELEVANT_SECTIONS = [
+        'Branch - Dealing Code - IC Recv Dt',
+        'DC to Branch Detail With Remarks',
+        'RKJ Details',
+        'File Tracking Status'
+    ];
+
+    // Color scheme
+    const COLORS = {
+        primary: '#4a6fa5',       // Deep blue
+        secondary: '#6bb9e1',     // Light blue
+        accent: '#ff7e5f',        // Coral
+        highlight: '#ffcc5c',     // Amber
+        background: '#f5f7fa',    // Light gray
+        text: '#2d3748',          // Dark slate
+        success: '#68d391',       // Green
+        border: '#cbd5e0'         // Gray
+    };
+
+    const MONTHS = {
+        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'MAY': 4, 'JUN': 5,
+        'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
+    };
+
+    // Add stylesheets
+    function addGlobalStyles() {
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .date-highlight {
+                background-color: ${COLORS.highlight} !important;
+                box-shadow: 0 0 0 2px ${COLORS.accent};
+                border-radius: 3px;
+                padding: 2px 4px;
+                position: relative;
+                animation: pulse 2s infinite;
+            }
+
+            @keyframes pulse {
+                0% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0.7); }
+                70% { box-shadow: 0 0 0 6px rgba(255, 126, 95, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0); }
+            }
+
+            .latest-date-tooltip {
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                background: ${COLORS.accent};
+                color: white;
+                padding: 8px 12px;
+                border-radius: 4px;
+                font-size: 14px;
+                animation: fadeIn 0.5s;
+                z-index: 9999;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function parseCustomDate(dateStr) {
+        // Remove any parentheses and surrounding whitespace
+        dateStr = dateStr.replace(/[\(\)]/g, '').trim();
+
+        // Match patterns:
+        // DD-MMM-YYYY (16-SEP-2022)
+        // DD/MM/YYYY (16/09/2022)
+        const patterns = [
+            {
+                regex: /(\d{1,2})[-\/]([A-Z]{3})[-\/](\d{4})/,
+                parse: (match) => new Date(
+                    parseInt(match[3]), // year
+                    MONTHS[match[2].toUpperCase()], // month
+                    parseInt(match[1]) // day
+                )
+            },
+            {
+                regex: /(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/,
+                parse: (match) => new Date(
+                    parseInt(match[3]), // year
+                    parseInt(match[2]) - 1, // month (0-based)
+                    parseInt(match[1]) // day
+                )
+            }
+        ];
+
+        for (const pattern of patterns) {
+            const match = dateStr.match(pattern.regex);
+            if (match) {
+                try {
+                    const date = pattern.parse(match);
+                    if (!isNaN(date.getTime())) {
+                        return date;
+                    }
+                } catch (e) {
+                    console.error('Error parsing date:', dateStr, e);
+                }
+            }
+        }
+        return null;
+    }
+
+    function extractDates(text, sectionName, cell) {
+        const datePatterns = [
+            /\b(\d{1,2})[-\/]([A-Z]{3})[-\/](\d{4})\b/g,  // DD-MMM-YYYY
+            /\b(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})\b/g,   // DD-MM-YYYY or DD/MM/YYYY
+        ];
+
+        const dates = [];
+        for (const pattern of datePatterns) {
+            const cellText = text;
+            pattern.lastIndex = 0; // Reset regex state
+
+            let match;
+            while ((match = pattern.exec(cellText)) !== null) {
+                const parsedDate = parseCustomDate(match[0]);
+                if (parsedDate) {
+                    dates.push({
+                        date: parsedDate,
+                        original: match[0],
+                        section: sectionName,
+                        context: text.trim(),
+                        position: {
+                            start: match.index,
+                            end: match.index + match[0].length
+                        },
+                        element: cell
+                    });
+                }
+            }
+        }
+        return dates;
+    }
+
+    function highlightDateInCell(cell, dateInfo) {
+        // We need to find and wrap the date text
+        const text = cell.innerHTML;
+        const original = dateInfo.original;
+
+        // Use a marker to find the exact occurrence position
+        const markedText = text.replace(
+            new RegExp('(' + escapeRegExp(original) + ')', 'g'),
+            '<span class="date-highlight">$1</span>'
+        );
+
+        cell.innerHTML = markedText;
+    }
+
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function findLatestDate() {
+        setTimeout(() => {
+            const allDates = [];
+
+            // Get all table rows
+            const rows = document.getElementsByTagName('tr');
+
+            for (const row of rows) {
+                const cells = row.cells;
+                if (cells.length >= 2) {
+                    const headerCell = cells[0];
+                    const contentCell = cells[1];
+
+                    // Check if this row is one of our relevant sections
+                    const sectionName = headerCell.textContent.trim();
+                    if (RELEVANT_SECTIONS.some(section => sectionName.includes(section))) {
+                        const dates = extractDates(contentCell.textContent, sectionName, contentCell);
+                        allDates.push(...dates);
+                    }
+                }
+            }
+
+            if (allDates.length === 0) {
+                showResult('No dates found in specified sections', '', '');
+                showTooltip('No dates found in specified sections');
+                return;
+            }
+
+            // Find the latest date
+            const latestDateInfo = allDates.reduce((latest, current) =>
+                current.date > latest.date ? current : latest
+            );
+
+            // Highlight the latest date in the table
+            highlightDateInCell(latestDateInfo.element, latestDateInfo);
+
+            // Show floating result box
+            showResult(
+                formatDate(latestDateInfo.date),
+                latestDateInfo.section,
+                latestDateInfo.context
+            );
+
+            // Show temporary tooltip
+            showTooltip(`Latest date found: ${formatDate(latestDateInfo.date)}`);
+        }, 1000);
+    }
+
+    function formatDate(date) {
+        const day = date.getDate().toString().padStart(2, '0');
+        const monthNames = Object.keys(MONTHS);
+        const month = monthNames[date.getMonth()];
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+    }
+
+    function showTooltip(message) {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'latest-date-tooltip';
+        tooltip.textContent = message;
+        document.body.appendChild(tooltip);
+
+        setTimeout(() => {
+            tooltip.style.opacity = '0';
+            tooltip.style.transition = 'opacity 0.5s ease';
+            setTimeout(() => tooltip.remove(), 500);
+        }, 3000);
+    }
+
+    function showResult(date, section, context) {
+        // Remove existing result div if present
+        const existingDiv = document.getElementById('latest-date-result');
+        if (existingDiv) {
+            existingDiv.remove();
+        }
+
+        // Create new result div
+        const resultDiv = document.createElement('div');
+        resultDiv.id = 'latest-date-result';
+        Object.assign(resultDiv.style, {
+            position: 'fixed',
+            top: '120px', // Position lower to avoid overlapping with table
+            left: '20px', // Position on left side
+            padding: '0',
+            backgroundColor: COLORS.background,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: '8px',
+            zIndex: '9999',
+            width: '280px', // Made more compact
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            fontSize: '13px', // Slightly smaller font
+            fontFamily: 'Arial, sans-serif',
+            overflow: 'hidden',
+            transition: 'all 0.3s ease'
+        });
+
+        resultDiv.innerHTML = `
+            <div style="background-color: ${COLORS.primary}; color: white; padding: 8px 12px; position: relative;">
+                <h3 style="margin: 0; font-size: 14px; font-weight: 600;">Latest Date Finder</h3>
+                <div style="position: absolute; top: 7px; right: 8px; cursor: pointer;
+                            width: 18px; height: 18px; display: flex; align-items: center;
+                            justify-content: center; border-radius: 50%; background: rgba(255,255,255,0.2);"
+                     onclick="this.parentElement.parentElement.remove()">✖</div>
+            </div>
+
+            <div style="padding: 12px;">
+                <div style="display: flex; align-items: center; margin-bottom: 10px;
+                           background: ${COLORS.success}; color: white; padding: 8px;
+                           border-radius: 4px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <strong style="font-size: 16px;">${date}</strong>
+                </div>
+
+                ${section ? `
+                <div style="margin-bottom: 10px;">
+                    <div style="font-weight: bold; margin-bottom: 3px; color: ${COLORS.text}; font-size: 12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             style="vertical-align: middle; margin-right: 4px;">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        Section:
+                    </div>
+                    <div style="background-color: white; padding: 6px; border-radius: 4px;
+                               border: 1px solid ${COLORS.border}; color: ${COLORS.text}; font-size: 12px;">
+                        ${section}
+                    </div>
+                </div>` : ''}
+
+                ${context ? `
+                <div>
+                    <div style="font-weight: bold; margin-bottom: 3px; color: ${COLORS.text}; font-size: 12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             style="vertical-align: middle; margin-right: 4px;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        Context:
+                    </div>
+                    <div style="max-height: 80px; overflow-y: auto; background-color: white;
+                               padding: 6px; border-radius: 4px; border: 1px solid ${COLORS.border};
+                               color: ${COLORS.text}; line-height: 1.3; font-size: 12px;">
+                        ${context}
+                    </div>
+                </div>` : ''}
+            </div>
+
+            <div style="background-color: ${COLORS.secondary}; color: white; font-size: 11px;
+                       padding: 6px; text-align: center;">
+                <span style="opacity: 0.8;">Date highlighted on page for visibility</span>
+            </div>
+        `;
+
+        // Add drag functionality
+        makeDraggable(resultDiv);
+
+        document.body.appendChild(resultDiv);
+
+        // Entrance animation
+        setTimeout(() => {
+            resultDiv.style.transform = 'translateY(10px)';
+            resultDiv.style.opacity = '0';
+            setTimeout(() => {
+                resultDiv.style.transform = 'translateY(0)';
+                resultDiv.style.opacity = '1';
+            }, 50);
+        }, 0);
+    }
+
+    function makeDraggable(element) {
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+        // Get the header element to use as drag handle
+        const header = element.querySelector('div:first-child');
+        if (header) {
+            header.style.cursor = 'move';
+            header.onmousedown = dragMouseDown;
+        } else {
+            element.onmousedown = dragMouseDown;
+        }
+
+        function dragMouseDown(e) {
+            e = e || window.event;
+            e.preventDefault();
+            // Get the mouse cursor position at startup
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            document.onmouseup = closeDragElement;
+            // Call a function whenever the cursor moves
+            document.onmousemove = elementDrag;
+        }
+
+        function elementDrag(e) {
+            e = e || window.event;
+            e.preventDefault();
+            // Calculate the new cursor position
+            pos1 = pos3 - e.clientX;
+            pos2 = pos4 - e.clientY;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            // Set the element's new position
+            const newTop = (element.offsetTop - pos2);
+            const newLeft = (element.offsetLeft - pos1);
+
+            // Ensure it doesn't go off-screen
+            const maxX = window.innerWidth - element.offsetWidth;
+            const maxY = window.innerHeight - element.offsetHeight;
+
+            element.style.top = Math.min(Math.max(0, newTop), maxY) + "px";
+            element.style.left = Math.min(Math.max(0, newLeft), maxX) + "px";
+        }
+
+        function closeDragElement() {
+            // Stop moving when mouse button is released
+            document.onmouseup = null;
+            document.onmousemove = null;
+        }
+    }
+
+    // Add global styles first
+    addGlobalStyles();
+
+    // Run the script after page loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', findLatestDate);
+    } else {
+        findLatestDate();
+    }
+})();
