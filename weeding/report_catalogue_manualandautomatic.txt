@@ -2,7 +2,7 @@
 // @name         Weeding Catalogue Report Complete Automator
 // @namespace    Sajin M. Simon
 // @version      0.9
-// @description  Automates selections in weeding catalogue report page with dark mode UI
+// @description  Automates selections in weeding catalogue report page with dark mode UI (Press "\" to activate)
 // @author       Sajin M. Simon
 // @match        http://10.145.22.11:8888/report_catalogue.php
 // @grant        none
@@ -11,281 +11,24 @@
 (function() {
     'use strict';
 
-    // Global variables to track highest numbers
-    let highestBatch = '';
-    let highestRack = '';
-    let highestShelf = '';
-    const YOUR_NAME = 'Sajin Report'; // Change this to your name
+    // Only initialize the script when the \ key is pressed
+    let scriptActivated = false;
 
-    // Function to update title with highest numbers
-    function updateTitle() {
-        const numbers = [highestBatch, highestRack, highestShelf]
-            .filter(num => num !== '')
-            .join(' | ');
-        document.title = `${YOUR_NAME} - ${numbers}` || "Entry";
-    }
+    // Function to initialize the script
+    function initScript() {
+        if (scriptActivated) return; // Prevent multiple initializations
+        scriptActivated = true;
 
-    // Add custom styles with dark mode
-    const style = document.createElement('style');
-    style.textContent = `
-        /* Dark mode overrides for main page */
-        body {
-            background-color: #1a1a1a !important;
-            color: #e0e0e0 !important;
-        }
+        console.log('Weeding Catalogue Report Automator activated!');
 
-        select, input, button {
-            background-color: #2d2d2d !important;
-            color: #e0e0e0 !important;
-            border: 1px solid #404040 !important;
-        }
-
-        table {
-            background-color: #2d2d2d !important;
-            color: #e0e0e0 !important;
-        }
-
-        th, td {
-            background-color: #2d2d2d !important;
-            color: #e0e0e0 !important;
-        }
-
-        /* Modern notification style */
-        .copy-notification {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background-color: #2196F3;
-            color: white;
-            padding: 16px 24px;
-            border-radius: 8px;
-            z-index: 10000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            display: none;
-            animation: slideIn 0.3s ease-in-out;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-        }
-
-        /* Modern control panel */
-        .control-panel {
-            position: fixed;
-            bottom: 20px;
-            left: 05px;
-            z-index: 9999;
-            background-color: #2d2d2d;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-            width: 280px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-        }
-
-        .control-panel-header {
-            font-size: 16px;
-            font-weight: 600;
-            color: #fff;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .control-panel input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #404040;
-            border-radius: 8px;
-            background-color: #1a1a1a;
-            color: #fff;
-            margin-bottom: 12px;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-
-        .control-panel input:focus {
-            outline: none;
-            border-color: #2196F3;
-            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
-        }
-
-        .control-panel button {
-            width: 100%;
-            padding: 10px 16px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .control-panel button:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-        }
-
-        .primary-button {
-            background-color: #2196F3 !important;
-            color: white !important;
-        }
-
-        .secondary-button {
-            background-color: #424242 !important;
-            color: #fff !important;
-        }
-
-        .control-panel button:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-
-        .control-panel button:active:not(:disabled) {
-            transform: translateY(0);
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-
-        .status-active {
-            background-color: #4CAF50;
-            box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateY(-20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
-
-        /* Loading animation */
-        .loading-spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-            margin-right: 8px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    `;
-    document.head.appendChild(style);
-
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = 'copy-notification';
-    notification.textContent = 'Data copied to clipboard!';
-    document.body.appendChild(notification);
-
-    // Function to show notification
-    function showNotification() {
-        notification.style.display = 'block';
-        notification.style.animation = 'slideIn 0.3s ease-in-out';
-
-        setTimeout(() => {
-            notification.style.animation = 'fadeOut 0.3s ease-in-out';
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, 300);
-        }, 2000);
-    }
-
-    // Replace favicon
-    function replaceFavicon() {
-        const existingFavicon = document.querySelector("link[rel*='icon']");
-        if (existingFavicon) {
-            existingFavicon.href = "https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/rat.ico";
-        } else {
-            const newFavicon = document.createElement("link");
-            newFavicon.rel = "icon";
-            newFavicon.href = "https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/rat.ico";
-            document.head.appendChild(newFavicon);
-        }
-    }
-
-    // Replace loading GIF
-    function replaceLoadingGif() {
-        const images = document.querySelectorAll('img[src*="loading.gif"]');
-        images.forEach(img => {
-            img.src = 'https://icons8.com/preloaders/preloaders/770/Filling%20broken%20wheel.gif';
-        });
-    }
-
-    // Wait for element function
-    function waitForElement(selector) {
-        return new Promise(resolve => {
-            if (document.querySelector(selector)) {
-                return resolve(document.querySelector(selector));
-            }
-
-            const observer = new MutationObserver(mutations => {
-                if (document.querySelector(selector)) {
-                    observer.disconnect();
-                    resolve(document.querySelector(selector));
-                }
-            });
-
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-        });
-    }
-
-    // Function to wait for options
-    function waitForOptions(selectElement) {
-        return new Promise(resolve => {
-            if (selectElement.options.length > 1) {
-                return resolve();
-            }
-
-            const observer = new MutationObserver(mutations => {
-                if (selectElement.options.length > 1) {
-                    observer.disconnect();
-                    resolve();
-                }
-            });
-
-            observer.observe(selectElement, {
-                childList: true,
-                subtree: true
-            });
-        });
-    }
-
-    // Function to show error message
-    function showError(message) {
-        const errorNotification = document.createElement('div');
-        errorNotification.style.cssText = `
+        // Show activation notification
+        const activationNotification = document.createElement('div');
+        activationNotification.style.cssText = `
             position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: #ff5252;
+            background-color: #4CAF50;
             color: white;
             padding: 16px 24px;
             border-radius: 8px;
@@ -294,254 +37,601 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             animation: slideIn 0.3s ease-in-out;
         `;
-        errorNotification.textContent = message;
-        document.body.appendChild(errorNotification);
+        activationNotification.textContent = 'Weeding Catalogue Report Automator Activated!';
+        document.body.appendChild(activationNotification);
 
         setTimeout(() => {
-            errorNotification.style.animation = 'fadeOut 0.3s ease-in-out';
+            activationNotification.style.animation = 'fadeOut 0.3s ease-in-out';
             setTimeout(() => {
-                errorNotification.remove();
+                activationNotification.remove();
             }, 300);
-        }, 3000);
-    }
+        }, 2000);
 
-    // Select highest number function with title update
-    function selectHighestNumber(selectElement, type) {
-        if (!selectElement) return;
+        // Global variables to track highest numbers
+        let highestBatch = '';
+        let highestRack = '';
+        let highestShelf = '';
+        const YOUR_NAME = 'Sajin Report'; // Change this to your name
 
-        const options = Array.from(selectElement.options);
-        if (options.length <= 1) return;
+        // Function to update title with highest numbers
+        function updateTitle() {
+            const numbers = [highestBatch, highestRack, highestShelf]
+                .filter(num => num !== '')
+                .join(' | ');
+            document.title = `${YOUR_NAME} - ${numbers}` || "Entry";
+        }
 
-        const numbers = options
-            .slice(1)
-            .map(opt => parseInt(opt.value))
-            .filter(num => !isNaN(num));
-
-        if (numbers.length > 0) {
-            const highestNumber = Math.max(...numbers);
-            selectElement.value = highestNumber;
-            selectElement.dispatchEvent(new Event('change'));
-
-            switch(type) {
-                case 'batch':
-                    highestBatch = highestNumber.toString();
-                    break;
-                case 'rack':
-                    highestRack = highestNumber.toString();
-                    break;
-                case 'shelf':
-                    highestShelf = highestNumber.toString();
-                    break;
+        // Add custom styles with dark mode
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Dark mode overrides for main page */
+            body {
+                background-color: #1a1a1a !important;
+                color: #e0e0e0 !important;
             }
 
-            updateTitle();
-            return highestNumber;
-        }
-        return null;
-    }
+            select, input, button {
+                background-color: #2d2d2d !important;
+                color: #e0e0e0 !important;
+                border: 1px solid #404040 !important;
+            }
 
-    // Select specific batch number
-    async function selectBatchNumber(batchNumber) {
-        const batchSelect = document.getElementById('batch_number');
-        if (!batchSelect) {
-            showError('Batch selection not available');
+            table {
+                background-color: #2d2d2d !important;
+                color: #e0e0e0 !important;
+            }
+
+            th, td {
+                background-color: #2d2d2d !important;
+                color: #e0e0e0 !important;
+            }
+
+            /* Modern notification style */
+            .copy-notification {
+                position: fixed;
+                top: 20px;
+                left: 20px;
+                background-color: #2196F3;
+                color: white;
+                padding: 16px 24px;
+                border-radius: 8px;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                display: none;
+                animation: slideIn 0.3s ease-in-out;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+
+            /* Modern control panel */
+            .control-panel {
+                position: fixed;
+                bottom: 20px;
+                left: 05px;
+                z-index: 9999;
+                background-color: #2d2d2d;
+                padding: 20px;
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+                width: 280px;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+
+            .control-panel-header {
+                font-size: 16px;
+                font-weight: 600;
+                color: #fff;
+                margin-bottom: 15px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .control-panel input {
+                width: 100%;
+                padding: 10px 12px;
+                border: 1px solid #404040;
+                border-radius: 8px;
+                background-color: #1a1a1a;
+                color: #fff;
+                margin-bottom: 12px;
+                font-size: 14px;
+                transition: all 0.2s ease;
+            }
+
+            .control-panel input:focus {
+                outline: none;
+                border-color: #2196F3;
+                box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+            }
+
+            .control-panel button {
+                width: 100%;
+                padding: 10px 16px;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+                transition: all 0.2s ease;
+                margin-bottom: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            }
+
+            .control-panel button:disabled {
+                opacity: 0.7;
+                cursor: not-allowed;
+            }
+
+            .primary-button {
+                background-color: #2196F3 !important;
+                color: white !important;
+            }
+
+            .secondary-button {
+                background-color: #424242 !important;
+                color: #fff !important;
+            }
+
+            .control-panel button:hover:not(:disabled) {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            }
+
+            .control-panel button:active:not(:disabled) {
+                transform: translateY(0);
+            }
+
+            .status-indicator {
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                margin-right: 8px;
+            }
+
+            .status-active {
+                background-color: #4CAF50;
+                box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+            }
+
+            @keyframes slideIn {
+                from {
+                    transform: translateY(-20px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+            }
+
+            /* Loading animation */
+            .loading-spinner {
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+                border: 2px solid rgba(255,255,255,0.3);
+                border-radius: 50%;
+                border-top-color: #fff;
+                animation: spin 1s ease-in-out infinite;
+                margin-right: 8px;
+            }
+
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = 'copy-notification';
+        notification.textContent = 'Data copied to clipboard!';
+        document.body.appendChild(notification);
+
+        // Function to show notification
+        function showNotification() {
+            notification.style.display = 'block';
+            notification.style.animation = 'slideIn 0.3s ease-in-out';
+
+            setTimeout(() => {
+                notification.style.animation = 'fadeOut 0.3s ease-in-out';
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 300);
+            }, 2000);
+        }
+
+        // Replace favicon
+        function replaceFavicon() {
+            const existingFavicon = document.querySelector("link[rel*='icon']");
+            if (existingFavicon) {
+                existingFavicon.href = "https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/rat.ico";
+            } else {
+                const newFavicon = document.createElement("link");
+                newFavicon.rel = "icon";
+                newFavicon.href = "https://raw.githubusercontent.com/ravanabackup/weeding/refs/heads/main/rat.ico";
+                document.head.appendChild(newFavicon);
+            }
+        }
+
+        // Replace loading GIF
+        function replaceLoadingGif() {
+            const images = document.querySelectorAll('img[src*="loading.gif"]');
+            images.forEach(img => {
+                img.src = 'https://icons8.com/preloaders/preloaders/770/Filling%20broken%20wheel.gif';
+            });
+        }
+
+        // Wait for element function
+        function waitForElement(selector) {
+            return new Promise(resolve => {
+                if (document.querySelector(selector)) {
+                    return resolve(document.querySelector(selector));
+                }
+
+                const observer = new MutationObserver(mutations => {
+                    if (document.querySelector(selector)) {
+                        observer.disconnect();
+                        resolve(document.querySelector(selector));
+                    }
+                });
+
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            });
+        }
+
+        // Function to wait for options
+        function waitForOptions(selectElement) {
+            return new Promise(resolve => {
+                if (selectElement.options.length > 1) {
+                    return resolve();
+                }
+
+                const observer = new MutationObserver(mutations => {
+                    if (selectElement.options.length > 1) {
+                        observer.disconnect();
+                        resolve();
+                    }
+                });
+
+                observer.observe(selectElement, {
+                    childList: true,
+                    subtree: true
+                });
+            });
+        }
+
+        // Function to show error message
+        function showError(message) {
+            const errorNotification = document.createElement('div');
+            errorNotification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: #ff5252;
+                color: white;
+                padding: 16px 24px;
+                border-radius: 8px;
+                z-index: 10001;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                animation: slideIn 0.3s ease-in-out;
+            `;
+            errorNotification.textContent = message;
+            document.body.appendChild(errorNotification);
+
+            setTimeout(() => {
+                errorNotification.style.animation = 'fadeOut 0.3s ease-in-out';
+                setTimeout(() => {
+                    errorNotification.remove();
+                }, 300);
+            }, 3000);
+        }
+
+        // Select highest number function with title update
+        function selectHighestNumber(selectElement, type) {
+            if (!selectElement) return;
+
+            const options = Array.from(selectElement.options);
+            if (options.length <= 1) return;
+
+            const numbers = options
+                .slice(1)
+                .map(opt => parseInt(opt.value))
+                .filter(num => !isNaN(num));
+
+            if (numbers.length > 0) {
+                const highestNumber = Math.max(...numbers);
+                selectElement.value = highestNumber;
+                selectElement.dispatchEvent(new Event('change'));
+
+                switch(type) {
+                    case 'batch':
+                        highestBatch = highestNumber.toString();
+                        break;
+                    case 'rack':
+                        highestRack = highestNumber.toString();
+                        break;
+                    case 'shelf':
+                        highestShelf = highestNumber.toString();
+                        break;
+                }
+
+                updateTitle();
+                return highestNumber;
+            }
+            return null;
+        }
+
+        // Select specific batch number
+        async function selectBatchNumber(batchNumber) {
+            const batchSelect = document.getElementById('batch_number');
+            if (!batchSelect) {
+                showError('Batch selection not available');
+                return false;
+            }
+
+            await waitForOptions(batchSelect);
+            const options = Array.from(batchSelect.options);
+
+            const batchOption = options.find(opt => opt.value.toLowerCase() === batchNumber.toLowerCase());
+            if (batchOption) {
+                batchSelect.value = batchNumber;
+                batchSelect.dispatchEvent(new Event('change'));
+                highestBatch = batchNumber;
+                updateTitle();
+                return true;
+            }
+            showError('Selected batch number not found!');
             return false;
         }
 
-        await waitForOptions(batchSelect);
-        const options = Array.from(batchSelect.options);
+        // Function to update button states
+        function updateButtonStates(isProcessing = false) {
+            const manualButton = document.querySelector('#manual-select-button');
+            const autoButton = document.querySelector('#auto-select-button');
+            const batchInput = document.querySelector('#manual-batch-input');
 
-        const batchOption = options.find(opt => opt.value.toLowerCase() === batchNumber.toLowerCase());
-        if (batchOption) {
-            batchSelect.value = batchNumber;
-            batchSelect.dispatchEvent(new Event('change'));
-            highestBatch = batchNumber;
-            updateTitle();
-            return true;
-        }
-        showError('Selected batch number not found!');
-        return false;
-    }
+            if (isProcessing) {
+                manualButton.disabled = true;
+                autoButton.disabled = true;
+                batchInput.disabled = true;
 
-    // Function to update button states
-    function updateButtonStates(isProcessing = false) {
-        const manualButton = document.querySelector('#manual-select-button');
-        const autoButton = document.querySelector('#auto-select-button');
-        const batchInput = document.querySelector('#manual-batch-input');
+                manualButton.innerHTML = '<div class="loading-spinner"></div>Processing...';
+                autoButton.innerHTML = '<div class="loading-spinner"></div>Processing...';
+            } else {
+                manualButton.disabled = false;
+                autoButton.disabled = false;
+                batchInput.disabled = false;
 
-        if (isProcessing) {
-            manualButton.disabled = true;
-            autoButton.disabled = true;
-            batchInput.disabled = true;
-
-            manualButton.innerHTML = '<div class="loading-spinner"></div>Processing...';
-            autoButton.innerHTML = '<div class="loading-spinner"></div>Processing...';
-        } else {
-            manualButton.disabled = false;
-            autoButton.disabled = false;
-            batchInput.disabled = false;
-
-            manualButton.innerHTML = 'Select Specific Batch';
-            autoButton.innerHTML = 'Auto-Select Highest Numbers';
-        }
-    }
-
-    // Handle manual batch selection
-    async function handleManualBatchSelection() {
-        try {
-            const locationSelect = document.getElementById('location');
-            locationSelect.value = 'CJA';
-            locationSelect.dispatchEvent(new Event('change'));
-
-            const batchInput = document.getElementById('manual-batch-input');
-            const batchNumber = batchInput.value.trim();
-
-            if (batchNumber === '') {
-                showError('Please enter a valid batch number!');
-                return;
+                manualButton.innerHTML = 'Select Specific Batch';
+                autoButton.innerHTML = 'Auto-Select Highest Numbers';
             }
+        }
 
-            const batchSelected = await selectBatchNumber(batchNumber);
-            if (batchSelected) {
-                const rackSelect = document.getElementById('rack_number');
-                await waitForOptions(rackSelect);
-                await new Promise(resolve => setTimeout(resolve, 500));
-                const selectedRack = selectHighestNumber(rackSelect, 'rack');
+        // Handle manual batch selection
+        async function handleManualBatchSelection() {
+            try {
+                updateButtonStates(true);
 
-                if (selectedRack) {
-                    const shelfSelect = document.getElementById('shelf_number');
-                    await waitForOptions(shelfSelect);
+                const locationSelect = document.getElementById('location');
+                locationSelect.value = 'CJA';
+                locationSelect.dispatchEvent(new Event('change'));
+
+                const batchInput = document.getElementById('manual-batch-input');
+                const batchNumber = batchInput.value.trim();
+
+                if (batchNumber === '') {
+                    showError('Please enter a valid batch number!');
+                    updateButtonStates(false);
+                    return;
+                }
+
+                const batchSelected = await selectBatchNumber(batchNumber);
+                if (batchSelected) {
+                    const rackSelect = document.getElementById('rack_number');
+                    await waitForOptions(rackSelect);
                     await new Promise(resolve => setTimeout(resolve, 500));
-                    selectHighestNumber(shelfSelect, 'shelf');
+                    const selectedRack = selectHighestNumber(rackSelect, 'rack');
 
-                    const submitButton = document.querySelector('button[name="btn_diary"]');
-                    if (submitButton) {
-                        submitButton.click();
+                    if (selectedRack) {
+                        const shelfSelect = document.getElementById('shelf_number');
+                        await waitForOptions(shelfSelect);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        selectHighestNumber(shelfSelect, 'shelf');
+
+                        const submitButton = document.querySelector('button[name="btn_diary"]');
+                        if (submitButton) {
+                            submitButton.click();
+                        }
                     }
                 }
+
+                updateButtonStates(false);
+            } catch (error) {
+                console.error('Error in manual batch selection:', error);
+                showError('Error occurred during selection process');
+                updateButtonStates(false);
             }
-        } catch (error) {
-            console.error('Error in manual batch selection:', error);
-            showError('Error occurred during selection process');
         }
-    }
 
-    // Handle automatic highest selections
-    async function handleAutoSelection() {
-        try {
-            const locationSelect = document.getElementById('location');
-            locationSelect.value = 'CJA';
-            locationSelect.dispatchEvent(new Event('change'));
+        // Handle automatic highest selections
+        async function handleAutoSelection() {
+            try {
+                updateButtonStates(true);
 
-            const batchSelect = document.getElementById('batch_number');
-            await waitForOptions(batchSelect);
-            await new Promise(resolve => setTimeout(resolve, 500));
-            const selectedBatch = selectHighestNumber(batchSelect, 'batch');
+                const locationSelect = document.getElementById('location');
+                locationSelect.value = 'CJA';
+                locationSelect.dispatchEvent(new Event('change'));
 
-            if (selectedBatch) {
-                const rackSelect = document.getElementById('rack_number');
-                await waitForOptions(rackSelect);
+                const batchSelect = document.getElementById('batch_number');
+                await waitForOptions(batchSelect);
                 await new Promise(resolve => setTimeout(resolve, 500));
-                const selectedRack = selectHighestNumber(rackSelect, 'rack');
+                const selectedBatch = selectHighestNumber(batchSelect, 'batch');
 
-                if (selectedRack) {
-                    const shelfSelect = document.getElementById('shelf_number');
-                    await waitForOptions(shelfSelect);
+                if (selectedBatch) {
+                    const rackSelect = document.getElementById('rack_number');
+                    await waitForOptions(rackSelect);
                     await new Promise(resolve => setTimeout(resolve, 500));
-                    selectHighestNumber(shelfSelect, 'shelf');
+                    const selectedRack = selectHighestNumber(rackSelect, 'rack');
 
-                    const submitButton = document.querySelector('button[name="btn_diary"]');
-                    if (submitButton) {
-                        submitButton.click();
+                    if (selectedRack) {
+                        const shelfSelect = document.getElementById('shelf_number');
+                        await waitForOptions(shelfSelect);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        selectHighestNumber(shelfSelect, 'shelf');
+
+                        const submitButton = document.querySelector('button[name="btn_diary"]');
+                        if (submitButton) {
+                            submitButton.click();
+                        }
                     }
                 }
+
+                updateButtonStates(false);
+            } catch (error) {
+                console.error('Error in auto selection:', error);
+                showError('Error occurred during selection process');
+                updateButtonStates(false);
             }
-        } catch (error) {
-            console.error('Error in auto selection:', error);
-            alert('Error occurred during selection process');
         }
-    }
 
-    // Main automation function
-    async function automate() {
-        try {
-            replaceLoadingGif();
-
-            const observer = new MutationObserver((mutations) => {
+        // Main automation function
+        async function automate() {
+            try {
+                replaceFavicon();
                 replaceLoadingGif();
-            });
 
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                attributeFilter: ['src']
-            });
+                const observer = new MutationObserver((mutations) => {
+                    replaceLoadingGif();
+                });
 
-            const locationRadio = await waitForElement('#p_type3');
-            locationRadio.click();
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['src']
+                });
 
-            await waitForElement('#location');
+                const locationRadio = await waitForElement('#p_type3');
+                locationRadio.click();
 
-            document.getElementById('location_wise').style.display = '';
-            document.getElementById('date_wise').style.display = 'none';
-            document.getElementById('case_wise').style.display = 'none';
+                await waitForElement('#location');
 
-            // Add copy notification functionality
-            waitForElement('.dt-buttons').then(() => {
-                const copyButton = document.querySelector('.dt-button.buttons-copy');
-                if (copyButton) {
-                    copyButton.addEventListener('click', () => {
-                        showNotification();
-                    });
+                document.getElementById('location_wise').style.display = '';
+                document.getElementById('date_wise').style.display = 'none';
+                document.getElementById('case_wise').style.display = 'none';
+
+                // Add copy notification functionality
+                waitForElement('.dt-buttons').then(() => {
+                    const copyButton = document.querySelector('.dt-button.buttons-copy');
+                    if (copyButton) {
+                        copyButton.addEventListener('click', () => {
+                            showNotification();
+                        });
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error in automation:', error);
+            }
+        }
+
+        // Add control panel with manual input
+        function addControlPanel() {
+            const panel = document.createElement('div');
+            panel.className = 'control-panel';
+
+            // Add header with status indicator
+            const header = document.createElement('div');
+            header.className = 'control-panel-header';
+            const statusIndicator = document.createElement('span');
+            statusIndicator.className = 'status-indicator status-active';
+            const headerText = document.createElement('span');
+            headerText.textContent = 'Weeding Automator';
+            header.appendChild(statusIndicator);
+            header.appendChild(headerText);
+            panel.appendChild(header);
+
+            const batchInput = document.createElement('input');
+            batchInput.type = 'text';
+            batchInput.id = 'manual-batch-input';
+            batchInput.placeholder = 'Enter Batch Number';
+
+            batchInput.addEventListener('keydown', async (event) => {
+                if (event.key === 'Enter') {
+                    await handleManualBatchSelection();
                 }
             });
 
-        } catch (error) {
-            console.error('Error in automation:', error);
+            const manualButton = document.createElement('button');
+            manualButton.textContent = 'Select Specific Batch';
+            manualButton.id = 'manual-select-button';
+            manualButton.className = 'primary-button';
+            manualButton.onclick = handleManualBatchSelection;
+
+            const autoButton = document.createElement('button');
+            autoButton.textContent = 'Auto-Select Highest Numbers';
+            autoButton.id = 'auto-select-button';
+            autoButton.className = 'secondary-button';
+            autoButton.onclick = handleAutoSelection;
+
+            panel.appendChild(batchInput);
+            panel.appendChild(manualButton);
+            panel.appendChild(autoButton);
+            document.body.appendChild(panel);
         }
-    }
 
-    // Add control panel with manual input
-    function addControlPanel() {
-        const panel = document.createElement('div');
-        panel.className = 'control-panel';
-
-        const batchInput = document.createElement('input');
-        batchInput.type = 'text';
-        batchInput.id = 'manual-batch-input';
-        batchInput.placeholder = 'Enter Batch Number';
-
-        batchInput.addEventListener('keydown', async (event) => {
-            if (event.key === 'Enter') {
-                await handleManualBatchSelection();
-            }
-        });
-
-        const manualButton = document.createElement('button');
-        manualButton.textContent = 'Select Specific Batch';
-        manualButton.id = 'manual-select-button';
-        manualButton.onclick = handleManualBatchSelection;
-
-        const autoButton = document.createElement('button');
-        autoButton.textContent = 'Auto-Select Highest Numbers';
-        autoButton.id = 'auto-select-button';
-        autoButton.onclick = handleAutoSelection;
-
-        panel.appendChild(batchInput);
-        panel.appendChild(manualButton);
-        panel.appendChild(autoButton);
-        document.body.appendChild(panel);
-    }
-
-    // Start automation when page is loaded
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            automate();
-            addControlPanel();
-        });
-    } else {
+        // Start automation when script is activated
         automate();
         addControlPanel();
     }
+
+    // Listen for the backslash key press to activate the script
+    document.addEventListener('keydown', function(event) {
+        // Check if the key pressed is backslash "\"
+        if (event.key === '\\' && !scriptActivated) {
+            initScript();
+        }
+    });
+
+    // Add a small indicator to show the script is ready
+    const indicator = document.createElement('div');
+    indicator.style.cssText = `
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        background-color: #333;
+        color: #fff;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        opacity: 0.7;
+        z-index: 9999;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+    indicator.textContent = '😊';
+    document.body.appendChild(indicator);
+
+    // Make the indicator fade away after 5 seconds
+    setTimeout(() => {
+        indicator.style.transition = 'opacity 1s ease';
+        indicator.style.opacity = '0';
+        setTimeout(() => {
+            indicator.style.display = 'none';
+        }, 1000);
+    }, 5000);
 })();
