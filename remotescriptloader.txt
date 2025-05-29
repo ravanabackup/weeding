@@ -24,7 +24,7 @@
             'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMHRoYW5vcy50eHQ=', // lite thanos.txt
             'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMHdlYnBhZ2UudHh0', // lite webpage.txt
             'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL2luZmluaXR5bG9hZGVyLnR4dA==', // infinityloader.txt
-            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvYmF0Y2hzZWFyY2gudHh0', // batchsearch.txt
+            '@aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvYmF0Y2hzZWFyY2gudHh0', // batchsearch.txt
             'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMGZpbHRlci50eHQ=' // lite filter.txt
         ],
         'report_catalogue.php': [
