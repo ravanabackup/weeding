@@ -8,40 +8,43 @@
 // @match        *://10.145.22.11:8888/weed_catalogue.php*
 // @grant        none
 // ==/UserScript==
-
 (function() {
     'use strict';
-
-    // Easy category management - just add/remove from this list
-    const CATEGORIES = ['CWP', 'CRWP', 'LPA', 'RSA', 'COCP', 'CR', 'CRR', 'TA', 'CRM', 'CRM-M', 'FAO', 'CRA'];
-
+    // Categories arranged in alphabetical order
+    const CATEGORIES = ['COCP', 'CR', 'CRA', 'CRM', 'CRM-M', 'CRR', 'CRWP', 'CWP', 'FAO', 'LPA', 'RSA', 'TA'];
     let filterTimeout;
-
     function addSearchFilter() {
         const container = document.createElement('div');
         container.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9999;background:#337ab7;padding:8px;border-radius:4px;display:flex;gap:5px;flex-wrap:wrap;max-width:300px;';
-
         // Search input
         const searchInput = document.createElement('input');
         searchInput.style.cssText = 'padding:4px;border:1px solid #ddd;border-radius:2px;width:120px;font-size:12px;';
         searchInput.placeholder = 'Search...';
         searchInput.id = 'search';
-
         // Category dropdown
         const categorySelect = document.createElement('select');
         categorySelect.style.cssText = 'padding:4px;border:1px solid #ddd;border-radius:2px;font-size:12px;';
         categorySelect.innerHTML = '<option value="">All</option>' + CATEGORIES.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-
         // Clear button
         const clearBtn = document.createElement('button');
         clearBtn.style.cssText = 'padding:4px 8px;background:#d9534f;color:white;border:none;border-radius:2px;cursor:pointer;font-size:11px;';
         clearBtn.textContent = 'Clear';
-
         container.appendChild(searchInput);
         container.appendChild(categorySelect);
         container.appendChild(clearBtn);
         document.body.appendChild(container);
-
+        // Exact match function for categories
+        function hasExactCategoryMatch(text, category) {
+            const upperText = text.toUpperCase();
+            const upperCategory = category.toUpperCase();
+            
+            // Create regex pattern that matches category followed by dash and number
+            // This ensures CRM only matches CRM-numbers, not CRM-M-numbers
+            const pattern = upperCategory + '-\\d';
+            const regex = new RegExp(pattern);
+            
+            return regex.test(upperText);
+        }
         // Debounced filtering function
         function doFilter() {
             const searchVal = searchInput.value.toLowerCase();
@@ -53,18 +56,16 @@
                 if (cell) {
                     const text = cell.textContent.toLowerCase();
                     const matchSearch = !searchVal || text.includes(searchVal);
-                    const matchCategory = !categoryVal || text.includes(categoryVal.toLowerCase());
+                    const matchCategory = !categoryVal || hasExactCategoryMatch(cell.textContent, categoryVal);
                     rows[i].style.display = (matchSearch && matchCategory) ? '' : 'none';
                 }
             }
         }
-
         // Event listeners with debouncing
         function handleInput() {
             clearTimeout(filterTimeout);
             filterTimeout = setTimeout(doFilter, 300);
         }
-
         searchInput.addEventListener('input', handleInput);
         categorySelect.addEventListener('change', doFilter);
         clearBtn.addEventListener('click', function() {
@@ -73,12 +74,10 @@
             doFilter();
         });
     }
-
     // Simple initialization
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', addSearchFilter);
     } else {
         addSearchFilter();
     }
-
 })();
