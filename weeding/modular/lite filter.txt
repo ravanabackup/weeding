@@ -11,7 +11,7 @@
 (function() {
     'use strict';
     // Categories arranged in alphabetical order
-    const CATEGORIES = ['CM', 'COCP', 'CR', 'CRA', 'CRM', 'CRM-M', 'CRR', 'CRWP', 'CWP', 'ESA', 'FAO', 'LPA', 'RSA', 'TA'];
+    const CATEGORIES = ['CM', 'COCP', 'CR', 'CRA', 'CRM', 'CRM-M', 'CRR', 'CRWP', 'CWP', 'EFA', 'ESA', 'FAO', 'LPA', 'RFA', 'RSA', 'TA'];
     let filterTimeout;
     function addSearchFilter() {
         const container = document.createElement('div');
