@@ -1,0 +1,67 @@
+// ==UserScript==
+// @name         Auto Login for HighCourt Registry
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Automatically fill login credentials and submit form
+// @author       You
+// @match        http://10.145.22.11:8888/login2.orcl*
+// @match        http://10.145.22.11:8888/login2.orcl
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+    
+    // Wait for the page to load completely
+    window.addEventListener('load', function() {
+        // Small delay to ensure all elements are ready
+        setTimeout(function() {
+            autoLogin();
+        }, 500);
+    });
+    
+    function autoLogin() {
+        try {
+            // Find the form elements
+            const usernameField = document.querySelector('input[name="uname"]');
+            const passwordField = document.querySelector('input[name="passwd"]');
+            const submitButton = document.querySelector('input[name="submit"]');
+            
+            // Check if all required elements exist
+            if (usernameField && passwordField && submitButton) {
+                console.log('Auto-login: Found all form elements');
+                
+                // Fill in the credentials
+                usernameField.value = '7117';
+                passwordField.value = 'sajinsimon13';
+                
+                // Trigger focus events to match the original form behavior
+                usernameField.focus();
+                usernameField.blur();
+                passwordField.focus();
+                passwordField.blur();
+                
+                // Submit the form after a short delay
+                setTimeout(function() {
+                    console.log('Auto-login: Submitting form...');
+                    submitButton.click();
+                }, 100);
+                
+            } else {
+                console.log('Auto-login: Could not find all required form elements');
+                console.log('Username field found:', !!usernameField);
+                console.log('Password field found:', !!passwordField);
+                console.log('Submit button found:', !!submitButton);
+            }
+        } catch (error) {
+            console.error('Auto-login error:', error);
+        }
+    }
+    
+    // Fallback: If the page is already loaded when script runs
+    if (document.readyState === 'complete') {
+        setTimeout(function() {
+            autoLogin();
+        }, 500);
+    }
+})();
