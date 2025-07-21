@@ -1,0 +1,280 @@
+// ==UserScript==
+// @name         OmniDocs Auto-Refresh
+// @namespace    http://tampermonkey.net/
+// @version      1.1
+// @description  Ctrl+R to open view page, Ctrl+Q for auto-refresh mode
+// @author       You
+// @match        http://10.145.22.12:8080/omnidocs*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+    
+    let isAutoMode = false;
+    let autoInterval = null;
+    let countdownInterval = null;
+    let statusDiv = null;
+    let countdownSeconds = 20;
+    let initialState = null; // Store the initial state
+    
+    // Capture initial state
+    function captureInitialState() {
+        try {
+            // Store scroll position
+            const scrollX = window.scrollX || window.pageXOffset;
+            const scrollY = window.scrollY || window.pageYOffset;
+            
+            // Store focused element
+            const activeElement = document.activeElement;
+            
+            // Store any other relevant state information
+            initialState = {
+                scrollX: scrollX,
+                scrollY: scrollY,
+                activeElement: activeElement,
+                timestamp: Date.now()
+            };
+            
+            console.log('Initial state captured:', initialState);
+        } catch (error) {
+            console.error('Error capturing initial state:', error);
+            initialState = null;
+        }
+    }
+    
+    // Restore initial state
+    function restoreInitialState() {
+        if (!initialState) return;
+        
+        try {
+            // Restore scroll position
+            window.scrollTo(initialState.scrollX, initialState.scrollY);
+            
+            // Restore focus if the element still exists
+            if (initialState.activeElement && 
+                document.contains(initialState.activeElement) && 
+                typeof initialState.activeElement.focus === 'function') {
+                initialState.activeElement.focus();
+            }
+            
+            console.log('Initial state restored');
+        } catch (error) {
+            console.error('Error restoring initial state:', error);
+        }
+    }
+    
+    // Create status indicator
+    function createStatusIndicator() {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'auto-status';
+        statusDiv.style.cssText = `
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #4CAF50;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 9999;
+            display: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+            user-select: none;
+        `;
+        
+        // Add click event to stop automatic mode
+        statusDiv.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (isAutoMode) {
+                toggleAutoMode();
+            }
+        });
+        
+        // Add hover effect
+        statusDiv.addEventListener('mouseenter', function() {
+            if (isAutoMode) {
+                statusDiv.style.background = '#45a049';
+                statusDiv.title = 'Click to stop automatic mode';
+            }
+        });
+        
+        statusDiv.addEventListener('mouseleave', function() {
+            if (isAutoMode) {
+                statusDiv.style.background = '#4CAF50';
+            }
+        });
+        
+        updateStatusText();
+        document.body.appendChild(statusDiv);
+    }
+    
+    // Update status text with countdown
+    function updateStatusText() {
+        if (statusDiv) {
+            if (isAutoMode) {
+                statusDiv.textContent = `AUTOMATIC (${countdownSeconds}s)`;
+            } else {
+                statusDiv.textContent = 'AUTOMATIC';
+            }
+        }
+    }
+    
+    // Countdown timer
+    function startCountdown() {
+        countdownSeconds = 20;
+        updateStatusText();
+        
+        countdownInterval = setInterval(() => {
+            countdownSeconds--;
+            updateStatusText();
+            
+            if (countdownSeconds <= 0) {
+                countdownSeconds = 20;
+            }
+        }, 1000);
+    }
+    
+    // Stop countdown timer
+    function stopCountdown() {
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        countdownSeconds = 20;
+        updateStatusText();
+    }
+    
+    // Function to click the Name column header (up arrow)
+    function clickNameHeader() {
+        try {
+            // Primary selector - look for the specific span with aria-label="Name"
+            let nameHeader = document.querySelector('span[aria-label="Name"].custom-element-focus');
+            
+            // Alternative selectors as fallbacks
+            if (!nameHeader) {
+                nameHeader = document.querySelector('span[aria-label="Name"]');
+            }
+            
+            if (!nameHeader) {
+                nameHeader = document.querySelector('#header\\*0[aria-label="Name"]');
+            }
+            
+            if (!nameHeader) {
+                nameHeader = document.querySelector('span.custom-element-focus[tabindex="0"]');
+            }
+            
+            // Fallback to manual search in spans
+            if (!nameHeader) {
+                const allSpans = document.querySelectorAll('span');
+                for (let span of allSpans) {
+                    if (span.getAttribute('aria-label') === 'Name' || 
+                        (span.textContent.trim().toLowerCase() === 'name' && 
+                         span.classList.contains('custom-element-focus'))) {
+                        nameHeader = span;
+                        break;
+                    }
+                }
+            }
+            
+            if (nameHeader) {
+                nameHeader.click();
+                console.log('Clicked Name header span:', nameHeader);
+                return true;
+            }
+            
+            console.log('Name header span not found');
+            return false;
+        } catch (error) {
+            console.error('Error clicking Name header:', error);
+            return false;
+        }
+    }
+    
+    // Toggle automatic mode
+    function toggleAutoMode() {
+        isAutoMode = !isAutoMode;
+        
+        if (isAutoMode) {
+            // Capture the current state before starting automatic mode
+            captureInitialState();
+            
+            // Start automatic mode
+            statusDiv.style.display = 'block';
+            startCountdown();
+            autoInterval = setInterval(() => {
+                clickNameHeader();
+                countdownSeconds = 20; // Reset countdown after each click
+            }, 20000); // Every 20 seconds
+            console.log('Auto mode ON - clicking Name header every 20 seconds');
+        } else {
+            // Stop automatic mode
+            statusDiv.style.display = 'none';
+            statusDiv.style.background = '#4CAF50'; // Reset background color
+            statusDiv.title = ''; // Clear tooltip
+            stopCountdown();
+            if (autoInterval) {
+                clearInterval(autoInterval);
+                autoInterval = null;
+            }
+            
+            // Restore the initial state
+            restoreInitialState();
+            
+            console.log('Auto mode OFF - initial state restored');
+        }
+    }
+    
+    // Open the view URL
+    function openViewPage() {
+        window.location.href = 'http://10.145.22.11:8888/view_uploaded_io_view.php';
+    }
+    
+    // Keyboard event listener
+    function handleKeydown(event) {
+        // Ctrl+R - Open view page
+        if (event.ctrlKey && event.key.toLowerCase() === 'r') {
+            event.preventDefault();
+            openViewPage();
+        }
+        
+        // Ctrl+Q - Toggle automatic mode
+        if (event.ctrlKey && event.key.toLowerCase() === 'q') {
+            event.preventDefault();
+            toggleAutoMode();
+        }
+    }
+    
+    // Initialize when page loads
+    function initialize() {
+        // Only run on OmniDocs pages
+        if (window.location.href.includes('10.145.22.12:8080/omnidocs')) {
+            createStatusIndicator();
+            document.addEventListener('keydown', handleKeydown);
+            console.log('OmniDocs Auto-Refresh script loaded');
+            console.log('Ctrl+R: Open view page | Ctrl+Q: Toggle auto mode | Click green indicator to stop auto mode');
+        }
+    }
+    
+    // Wait for page to load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialize);
+    } else {
+        initialize();
+    }
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (autoInterval) {
+            clearInterval(autoInterval);
+        }
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+        }
+    });
+    
+})();
