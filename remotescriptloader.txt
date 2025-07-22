@@ -1,12 +1,15 @@
 // ==UserScript==
-// @name         Remote Autofiller Loader Enhanced
-// @namespace    http://tampermonkey.net/
-// @version      1.5
-// @description  Loads specific autofiller scripts based on the current webpage URL with keyboard trigger for weed_catalogue
-// @author       You
+// @name         PHHC Modifier
+// @namespace    https://ravanabackup.github.io/
+// @version      1.6
+// @description  Scripts to enhance experience of PHHC Webpage
+// @author       ravana69
 // @match        http://10.145.22.11:8888/weed_catalogue.php
 // @match        http://10.145.22.11:8888/report_catalogue.php
 // @match        http://10.145.22.11:8888/enq_caseno.orcl
+// @match        http://10.145.22.11:8888/login2.orcl*
+// @match        http://10.145.22.11:8888/login2.orcl
+// @match        http://10.145.22.12:8080/omnidocs*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -19,7 +22,7 @@
     // Define script URLs for each page (converted to Base64)
     const scriptConfig = {
         'weed_catalogue.php': [
-            '@aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvYXV0b2ZpbGxlci50eHQ=', // autofiller.txt
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvYXV0b2ZpbGxlci50eHQ=', // autofiller.txt
             'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMGRhdGUlMjBwaWNrZXIlMjBuZXcudHh0', // lite date picker new.txt
             'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMHRoYW5vcy50eHQ=', // lite thanos.txt
             'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMHdlYnBhZ2UudHh0', // lite webpage.txt
@@ -32,6 +35,12 @@
         ],
         'enq_caseno.orcl': [
             'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvcXVlcnlkYXJrLnR4dA==' // querydark.txt
+        ],
+        'login2.orcl': [
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi9sb2dpbi50eHQ=' // login.txt
+        ],
+        'omnidocs': [
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi9kbXMudHh0' // dms.txt
         ]
     };
 
@@ -45,7 +54,20 @@
 
     // Determine which page we're on
     const currentPath = window.location.pathname;
-    const pageKey = Object.keys(scriptConfig).find(key => currentPath.includes(key));
+    const currentHost = window.location.host;
+    
+    let pageKey = null;
+    
+    // Check for specific host/path combinations
+    if (currentHost === '10.145.22.12:8080' && currentPath.includes('omnidocs')) {
+        pageKey = 'omnidocs';
+    } else {
+        // For other hosts, find matching page key
+        pageKey = Object.keys(scriptConfig).find(key => {
+            if (key === 'omnidocs') return false; // Skip omnidocs for non-matching hosts
+            return currentPath.includes(key);
+        });
+    }
 
     if (!pageKey) {
         console.error('No scripts configured for this page:', currentPath);
