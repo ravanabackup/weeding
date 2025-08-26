@@ -4,7 +4,7 @@
 // @version      1.0
 // @description  Adds auto-fill functionality with heart button and checkbox counter
 // @author       Sajin M. Simon
-// @match        *://10.145.22.11:8888/weed_catalogue.php*
+// @match        *://10.145.22.11:8888/weed_catalogue_new.php*
 // @grant        none
 // ==/UserScript==
 
