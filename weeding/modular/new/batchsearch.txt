@@ -1,0 +1,159 @@
+// ==UserScript==
+// @name         Batch No. Searcher
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Adds batch number search functionality to weeding catalogue
+// @author       You
+// @match        http://10.145.22.11:8888/weed_catalogue_new.php
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Create search interface
+    function createSearchInterface() {
+        const searchContainer = document.createElement('div');
+        searchContainer.style.cssText = 'margin: 10px; padding: 10px; background-color: #f5f5f5; border-radius: 5px; display: flex; align-items: center;';
+
+        const searchLabel = document.createElement('label');
+        searchLabel.textContent = 'Search Batch Number: ';
+        searchLabel.style.fontWeight = 'bold';
+        searchLabel.style.marginRight = '10px';
+
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.id = 'batchSearchInput';
+        searchInput.style.cssText = 'padding: 5px; margin-right: 10px; border: 1px solid #ccc; border-radius: 3px;';
+
+        const searchButton = document.createElement('button');
+        searchButton.textContent = 'Search';
+        searchButton.className = 'btn btn-primary';
+        searchButton.style.marginRight = '10px';
+
+        const resetButton = document.createElement('button');
+        resetButton.textContent = 'Reset';
+        resetButton.className = 'btn btn-secondary';
+
+        searchContainer.appendChild(searchLabel);
+        searchContainer.appendChild(searchInput);
+        searchContainer.appendChild(searchButton);
+        searchContainer.appendChild(resetButton);
+
+        // Find a good place to insert the search interface
+        const targetElement = document.querySelector('.panel-body') || document.body;
+        if (targetElement) {
+            targetElement.insertBefore(searchContainer, targetElement.firstChild);
+        }
+
+        // Add event listeners
+        searchButton.addEventListener('click', performSearch);
+        resetButton.addEventListener('click', resetSearch);
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+    }
+
+    // Perform the search
+    function performSearch() {
+        const searchValue = document.getElementById('batchSearchInput').value.trim();
+        if (!searchValue) return;
+
+        // Find all batch input fields
+        const batchInputs = document.querySelectorAll('input[id^="batch_"]');
+
+        // Find the rows (tr elements) that contain batch inputs
+        const rows = new Set();
+        batchInputs.forEach(input => {
+            const row = findParentRow(input);
+            if (row) {
+                rows.add(row);
+            }
+        });
+
+        // Hide/show rows based on batch number match
+        rows.forEach(row => {
+            const batchInputInRow = row.querySelector('input[id^="batch_"]');
+            if (batchInputInRow) {
+                const batchValue = batchInputInRow.value.trim();
+                if (batchValue === searchValue) {
+                    row.style.display = '';
+                    // Highlight the matching row
+                    row.style.backgroundColor = '#ffffcc';
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+
+        // Add search status indicator
+        updateSearchStatus();
+    }
+
+    // Reset the search
+    function resetSearch() {
+        document.getElementById('batchSearchInput').value = '';
+
+        // Show all rows and remove highlighting
+        const rows = document.querySelectorAll('tr');
+        rows.forEach(row => {
+            row.style.display = '';
+            row.style.backgroundColor = '';
+        });
+
+        // Remove search status indicator
+        const statusElement = document.getElementById('batchSearchStatus');
+        if (statusElement) {
+            statusElement.remove();
+        }
+    }
+
+    // Find the parent row of an element
+    function findParentRow(element) {
+        let current = element;
+        while (current && current.tagName !== 'TR') {
+            current = current.parentElement;
+        }
+        return current;
+    }
+
+    // Update search status indicator
+    function updateSearchStatus() {
+        // Remove existing status
+        const existingStatus = document.getElementById('batchSearchStatus');
+        if (existingStatus) {
+            existingStatus.remove();
+        }
+
+        // Count visible rows
+        const visibleRows = Array.from(document.querySelectorAll('tr')).filter(row =>
+            row.style.display !== 'none' &&
+            row.querySelector('input[id^="batch_"]') !== null
+        );
+
+        // Create status element
+        const statusElement = document.createElement('div');
+        statusElement.id = 'batchSearchStatus';
+        statusElement.style.cssText = 'margin: 10px; padding: 5px 10px; background-color: #e7f3fe; border-left: 4px solid #2196F3; font-weight: bold;';
+        statusElement.textContent = `Found ${visibleRows.length} matching records with batch number "${document.getElementById('batchSearchInput').value.trim()}"`;
+
+        // Insert after search container
+        const searchContainer = document.querySelector('#batchSearchInput').parentElement;
+        searchContainer.parentElement.insertBefore(statusElement, searchContainer.nextSibling);
+    }
+
+    // Initialize when the page is ready
+    function initialize() {
+        // Wait for the page to load fully
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', createSearchInterface);
+        } else {
+            createSearchInterface();
+        }
+    }
+
+    // Start initialization
+    initialize();
+})();
