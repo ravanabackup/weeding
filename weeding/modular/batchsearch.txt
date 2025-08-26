@@ -4,7 +4,7 @@
 // @version      1.0
 // @description  Adds batch number search functionality to weeding catalogue
 // @author       You
-// @match        http://10.145.22.11:8888/weed_catalogue.php
+// @match        http://10.145.22.11:8888/weed_catalogue_new.php
 // @grant        none
 // ==/UserScript==
 
