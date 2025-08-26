@@ -5,7 +5,7 @@
 // @version      2.1-lite
 // @description  Lightweight search with category dropdown for potato PCs
 // @author       Sajin M. Simon
-// @match        *://10.145.22.11:8888/weed_catalogue_new.php*
+// @match        *://10.145.22.11:8888/weed_catalogue.php*
 // @grant        none
 // ==/UserScript==
 (function() {
