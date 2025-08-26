@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Weeding Catalogue Report Complete Automator
 // @namespace    Sajin M. Simon
-// @version      0.9
+// @version      1.0
 // @description  Automates selections in weeding catalogue report page with dark mode UI (Press "\" to activate)
 // @author       Sajin M. Simon
 // @match        http://10.145.22.11:8888/report_catalogue.php
@@ -106,7 +106,7 @@
             .control-panel {
                 position: fixed;
                 bottom: 20px;
-                left: 05px;
+                left: 5px;
                 z-index: 9999;
                 background-color: #2d2d2d;
                 padding: 20px;
@@ -136,6 +136,7 @@
                 margin-bottom: 12px;
                 font-size: 14px;
                 transition: all 0.2s ease;
+                box-sizing: border-box;
             }
 
             .control-panel input:focus {
@@ -158,6 +159,7 @@
                 align-items: center;
                 justify-content: center;
                 gap: 8px;
+                box-sizing: border-box;
             }
 
             .control-panel button:disabled {
@@ -428,7 +430,7 @@
                 updateButtonStates(true);
 
                 const locationSelect = document.getElementById('location');
-                locationSelect.value = 'CJA';
+                locationSelect.value = '2'; // Fixed: Use value '2' instead of 'CJA'
                 locationSelect.dispatchEvent(new Event('change'));
 
                 const batchInput = document.getElementById('manual-batch-input');
@@ -474,7 +476,7 @@
                 updateButtonStates(true);
 
                 const locationSelect = document.getElementById('location');
-                locationSelect.value = 'CJA';
+                locationSelect.value = '2'; // Fixed: Use value '2' instead of 'CJA'
                 locationSelect.dispatchEvent(new Event('change'));
 
                 const batchSelect = document.getElementById('batch_number');
