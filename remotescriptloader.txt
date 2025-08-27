@@ -22,19 +22,19 @@
     // Define script URLs for each page (converted to Base64)
     const scriptConfig = {
         'weed_catalogue.php': [
-            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvYXV0b2ZpbGxlci50eHQ=', // autofiller.txt
-            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMGRhdGUlMjBwaWNrZXIlMjBuZXcudHh0', // lite date picker new.txt
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZC9hdXRvZmlsbGVyLnR4dA==', // autofiller.txt
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZC9saXRlJTIwZGF0ZSUyMHBpY2tlciUyMG5ldy50eHQ=', // lite date picker new.txt
             'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMHRoYW5vcy50eHQ=', // lite thanos.txt
-            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMHdlYnBhZ2UudHh0', // lite webpage.txt
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZC9saXRlJTIwd2VicGFnZS50eHQ=', // lite webpage.txt
             'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL2luZmluaXR5bG9hZGVyLnR4dA==', // infinityloader.txt
-            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvYmF0Y2hzZWFyY2gudHh0', // batchsearch.txt
-            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvbGl0ZSUyMGZpbHRlci50eHQ=' // lite filter.txt
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZC9iYXRjaHNlYXJjaC50eHQ=', // batchsearch.txt
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZC9saXRlJTIwZmlsdGVyLnR4dA==' // lite filter.txt
         ],
         'report_catalogue.php': [
             'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL3JlcG9ydF9jYXRhbG9ndWVfbWFudWFsYW5kYXV0b21hdGljLnR4dA==' // report_catalogue_manualandautomatic.txt
         ],
         'enq_caseno.orcl': [
-            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIvcXVlcnlkYXJrLnR4dA==' // querydark.txt
+            'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZC9xdWVyeWRhcmsudHh0' // querydark.txt
         ],
         'login2.orcl': [
             'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi9sb2dpbi50eHQ=' // login.txt
@@ -45,7 +45,7 @@
     };
 
     // Encrypted key URL (Base64)
-    const encryptedKeyUrl = 'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZHVsYXIva2V5LnR4dA=='; // key.txt
+    const encryptedKeyUrl = 'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3JhdmFuYWJhY2t1cC93ZWVkaW5nL3JlZnMvaGVhZHMvbWFpbi93ZWVkaW5nL21vZC9rZXkudHh0'; // key.txt
 
     // Function to decrypt Base64
     function decryptBase64(str) {
