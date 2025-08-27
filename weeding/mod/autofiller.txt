@@ -1,0 +1,228 @@
+// ==UserScript==
+// @name         High Court Auto-fill and Checkbox Counter
+// @namespace    Sajin M. Simon
+// @version      1.0
+// @description  Adds auto-fill functionality with heart button and checkbox counter
+// @author       Sajin M. Simon
+// @match        *://10.145.22.11:8888/weed_catalogue.php*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // State management
+    const state = {
+        batchNo: '',
+        rackNo: '',
+        shelfNo: '',
+        isDataLoaded: false,
+        selectedCount: 0
+    };
+
+    // Utility function
+    function triggerEvent(element, eventType) {
+        const event = new Event(eventType, { bubbles: true });
+        element.dispatchEvent(event);
+    }
+
+    // Create and update heart button
+    function createHeartButton() {
+        const heartButton = document.createElement('span');
+        Object.assign(heartButton.style, {
+            fontSize: '20px',
+            cursor: 'pointer',
+            position: 'fixed',
+            bottom: '-10px',
+            left: '10px',
+            zIndex: '9999',
+            transition: 'all 0.3s ease',
+            textShadow: '2px 2px 4px rgba(0,0,0,0.2)',
+            padding: '10px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+            textAlign: 'center'
+        });
+
+        updateHeartButtonState(heartButton);
+
+        heartButton.addEventListener('mouseover', () => {
+            heartButton.style.transform = 'scale(1.1)';
+        });
+
+        heartButton.addEventListener('mouseout', () => {
+            heartButton.style.transform = 'scale(1)';
+        });
+
+        heartButton.addEventListener('click', async () => {
+            if (await promptForValues()) {
+                const checkedBoxes = document.querySelectorAll('input[type="checkbox"]:checked');
+                checkedBoxes.forEach(checkbox => fillRowValues(checkbox.closest('tr')));
+            }
+        });
+
+        return heartButton;
+    }
+
+    function updateHeartButtonState(heartButton) {
+        const currentState = state.isDataLoaded ?
+            { symbol: 'Added', color: '#000000' } :
+            { symbol: 'Empty', color: '#000000' };
+        heartButton.innerHTML = currentState.symbol;
+        heartButton.style.color = currentState.color;
+    }
+
+    // Auto-fill functionality
+    function fillRowValues(row) {
+        if (!row) return;
+
+        const inputs = row.querySelectorAll('input[type="text"]');
+        const values = [state.batchNo, state.rackNo, state.shelfNo];
+
+        inputs.forEach((input, index) => {
+            if (input && values[index]) {
+                input.value = values[index];
+                triggerEvent(input, 'change');
+            }
+        });
+
+        const locationDropdown = row.querySelector('select');
+        if (locationDropdown) {
+            const cjaOption = Array.from(locationDropdown.options)
+                .find(option => option.text.trim().toUpperCase() === 'CJA');
+
+            if (cjaOption) {
+                locationDropdown.value = cjaOption.value;
+                triggerEvent(locationDropdown, 'change');
+            }
+        }
+    }
+
+    async function promptForValues() {
+        const prompts = [
+            { field: 'batchNo', message: 'Please enter Batch number (1):' },
+            { field: 'rackNo', message: 'Please enter Rack number (2):' },
+            { field: 'shelfNo', message: 'Please enter Shelf number (3):' }
+        ];
+
+        for (const prompt of prompts) {
+            const value = window.prompt(prompt.message);
+            if (value === null) return false;
+            state[prompt.field] = value;
+        }
+
+        const isReset = prompts.every(prompt =>
+            state[prompt.field] === '0' || state[prompt.field].trim() === ''
+        );
+
+        if (isReset) {
+            state.batchNo = '';
+            state.rackNo = '';
+            state.shelfNo = '';
+            state.isDataLoaded = false;
+        } else {
+            state.isDataLoaded = true;
+        }
+
+        const heartButton = document.querySelector('span[style*="cursor: pointer"]');
+        if (heartButton) {
+            updateHeartButtonState(heartButton);
+        }
+        return !isReset;
+    }
+
+    // Checkbox counter functionality
+    function createCounter() {
+        const counter = document.createElement('div');
+        counter.id = 'selectionCounter';
+        Object.assign(counter.style, {
+            position: 'fixed',
+            bottom: '50px',
+            left: '10px',
+            zIndex: '9999',
+            padding: '5px 10px',
+            background: 'white',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            fontWeight: 'bold',
+            minWidth: '80px',
+            textAlign: 'center'
+        });
+        document.body.appendChild(counter);
+        updateCounter();
+    }
+
+    function updateCounter() {
+        const prevCount = state.selectedCount;
+        state.selectedCount = document.querySelectorAll('input[type="checkbox"]:checked').length;
+
+        const counter = document.getElementById('selectionCounter');
+        if (counter) {
+            counter.textContent = `Selected: ${state.selectedCount}`;
+            counter.style.backgroundColor = state.selectedCount > 0 ? '#e8f5e9' : 'rgba(255,255,255,0.9)';
+            counter.style.color = state.selectedCount > 0 ? '#2e7d32' : '#34495e';
+        }
+    }
+
+    // Row highlighting
+    function updateRowHighlight(checkbox) {
+        const row = checkbox.closest('tr');
+        if (!row) return;
+
+        if (checkbox.checked) {
+            Object.assign(row.style, {
+                backgroundColor: '#b5eeff',
+                transition: 'background-color 0.3s ease'
+            });
+        } else {
+            Object.assign(row.style, {
+                backgroundColor: '',
+                transition: 'background-color 0.3s ease'
+            });
+        }
+    }
+
+    // Initialize everything
+    function initialize() {
+        document.body.appendChild(createHeartButton());
+        createCounter();
+
+        // Add event listeners
+        document.addEventListener('change', (e) => {
+            if (e.target.type === 'checkbox') {
+                updateCounter();
+                updateRowHighlight(e.target);
+                if (state.isDataLoaded && e.target.checked) {
+                    fillRowValues(e.target.closest('tr'));
+                }
+            }
+        });
+
+        // Set up observer for dynamic updates
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach(mutation => {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === 1) {
+                            const checkboxes = node.querySelectorAll('input[type="checkbox"]');
+                            checkboxes.forEach(updateRowHighlight);
+                        }
+                    });
+                }
+            });
+        });
+
+        observer.observe(document.body, {
+            subtree: true,
+            childList: true
+        });
+    }
+
+    // Run initialization
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialize);
+    } else {
+        initialize();
+    }
+})();

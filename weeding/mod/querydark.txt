@@ -1,0 +1,195 @@
+// ==UserScript==
+// @name         Case Latest Date Finder With Dark Mode
+// @namespace    http://tampermonkey.net/
+// @version      2.1
+// @description  Find latest date in specific case detail sections and highlight them on the page with dark mode
+// @match        http://10.145.22.11:8888/enq_caseno.orcl*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Define the specific sections we want to search
+    const RELEVANT_SECTIONS = [
+        'Branch - Dealing Code - IC Recv Dt',
+        'DC to Branch Detail With Remarks',
+        'RKJ Details',
+        'File Tracking Status'
+    ];
+
+    const MONTHS = {
+        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'MAY': 4, 'JUN': 5,
+        'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
+    };
+
+    function parseCustomDate(dateStr) {
+        // Remove any parentheses and surrounding whitespace
+        dateStr = dateStr.replace(/[\(\)]/g, '').trim();
+
+        // Match patterns:
+        // DD-MMM-YYYY (16-SEP-2022)
+        // DD/MM/YYYY (16/09/2022)
+        const patterns = [
+            {
+                regex: /(\d{1,2})[-\/]([A-Z]{3})[-\/](\d{4})/,
+                parse: (match) => new Date(
+                    parseInt(match[3]), // year
+                    MONTHS[match[2].toUpperCase()], // month
+                    parseInt(match[1]) // day
+                )
+            },
+            {
+                regex: /(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/,
+                parse: (match) => new Date(
+                    parseInt(match[3]), // year
+                    parseInt(match[2]) - 1, // month (0-based)
+                    parseInt(match[1]) // day
+                )
+            }
+        ];
+
+        for (const pattern of patterns) {
+            const match = dateStr.match(pattern.regex);
+            if (match) {
+                try {
+                    const date = pattern.parse(match);
+                    if (!isNaN(date.getTime())) {
+                        return date;
+                    }
+                } catch (e) {
+                    console.error('Error parsing date:', dateStr, e);
+                }
+            }
+        }
+        return null;
+    }
+
+    function extractDates(text, sectionName) {
+        const datePatterns = [
+            /\b(\d{1,2})[-\/]([A-Z]{3})[-\/](\d{4})\b/g,  // DD-MMM-YYYY
+            /\b(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})\b/g,   // DD-MM-YYYY or DD/MM/YYYY
+        ];
+
+        const dates = [];
+        for (const pattern of datePatterns) {
+            let match;
+            while ((match = pattern.exec(text)) !== null) {
+                const parsedDate = parseCustomDate(match[0]);
+                if (parsedDate) {
+                    dates.push({
+                        date: parsedDate,
+                        original: match[0],
+                        section: sectionName,
+                        context: text.trim()
+                    });
+                }
+            }
+        }
+        return dates;
+    }
+
+    function findLatestDate() {
+        setTimeout(() => {
+            const allDates = [];
+
+            // Get all table rows
+            const rows = document.getElementsByTagName('tr');
+
+            for (const row of rows) {
+                const cells = row.cells;
+                if (cells.length >= 2) {
+                    const headerCell = cells[0];
+                    const contentCell = cells[1];
+
+                    // Check if this row is one of our relevant sections
+                    const sectionName = headerCell.textContent.trim();
+                    if (RELEVANT_SECTIONS.some(section => sectionName.includes(section))) {
+                        const dates = extractDates(contentCell.textContent, sectionName);
+                        allDates.push(...dates);
+                    }
+                }
+            }
+
+            if (allDates.length === 0) {
+                console.log('No dates found in specified sections');
+                return;
+            }
+
+            // Find the latest date
+            const latestDateInfo = allDates.reduce((latest, current) =>
+                current.date > latest.date ? current : latest
+            );
+
+            highlightDates(latestDateInfo);
+        }, 1000);
+    }
+
+    function highlightDates(latestDateInfo) {
+        const rows = document.getElementsByTagName('tr');
+
+        for (const row of rows) {
+            const cells = row.cells;
+            if (cells.length >= 2) {
+                const headerCell = cells[0];
+                const contentCell = cells[1];
+
+                const sectionName = headerCell.textContent.trim();
+                if (sectionName.includes(latestDateInfo.section)) {
+                    // Highlight the date
+                    contentCell.innerHTML = contentCell.innerHTML.replace(
+                        latestDateInfo.original,
+                        `<span style="background-color: #ffeb3b; color: #000; font-weight: bold;">${latestDateInfo.original}</span>`
+                    );
+                }
+            }
+        }
+    }
+
+    function applyDarkMode() {
+        const css = `
+            body {
+                background-color: #121212;
+                color: #e0e0e0;
+            }
+            table {
+                background-color: #1e1e1e;
+                color: #e0e0e0;
+            }
+            th, td {
+                border: 1px solid #333;
+                padding: 8px;
+            }
+            th {
+                background-color: #333;
+            }
+            tr:nth-child(even) {
+                background-color: #2a2a2a;
+            }
+            tr:nth-child(odd) {
+                background-color: #1e1e1e;
+            }
+            a {
+                color: #bb86fc;
+            }
+            a:hover {
+                color: #3700b3;
+            }
+        `;
+        const style = document.createElement('style');
+        style.type = 'text/css';
+        style.appendChild(document.createTextNode(css));
+        document.head.appendChild(style);
+    }
+
+    // Run the script after page loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            applyDarkMode();
+            findLatestDate();
+        });
+    } else {
+        applyDarkMode();
+        findLatestDate();
+    }
+})();

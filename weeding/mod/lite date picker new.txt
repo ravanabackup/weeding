@@ -1,0 +1,186 @@
+// ==UserScript==
+// @name         Lightweight High Court Date Picker
+// @namespace    Sajin M. Simon
+// @version      1.5
+// @description  Minimal date picker for High Court interface with Enter key search
+// @author       Sajin M. Simon
+// @match        *://10.145.22.11:8888/weed_catalogue.php*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+    
+    // Wait for page to load completely
+    function init() {
+        console.log('Date picker script loaded');
+        
+        var btn = document.createElement('button');
+        btn.textContent = '📅';
+        btn.style.cssText = `
+            position: fixed;
+            bottom: 90px;
+            left: 20px;
+            z-index: 9999;
+            padding: 8px 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        `;
+        btn.title = 'Quick Date Picker';
+
+        btn.onclick = function(e) {
+            e.stopPropagation();
+            var old = document.getElementById('quick-dp');
+            if (old) {
+                old.remove();
+                return;
+            }
+
+            var container = document.createElement('div');
+            container.id = 'quick-dp';
+            container.style.cssText = `
+                position: fixed;
+                bottom: 140px;
+                left: 20px;
+                z-index: 10000;
+                background: white;
+                padding: 15px;
+                border-radius: 5px;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+                border: 1px solid #ccc;
+            `;
+
+            var input = document.createElement('input');
+            input.type = 'date';
+            input.style.cssText = 'padding: 5px; border: 1px solid #ccc; border-radius: 3px; margin-bottom: 10px; display: block;';
+            
+            // Set max date to today
+            var today = new Date().toISOString().split('T')[0];
+            input.max = today;
+            input.value = today; // Default to today
+
+            var searchBtn = document.createElement('button');
+            searchBtn.textContent = '🔍';
+            searchBtn.style.cssText = `
+                padding: 8px 12px;
+                background: #28a745;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                cursor: pointer;
+                width: 100%;
+            `;
+
+            var closeBtn = document.createElement('button');
+            closeBtn.textContent = '×';
+            closeBtn.style.cssText = `
+                position: absolute;
+                top: 5px;
+                right: 8px;
+                background: none;
+                border: none;
+                font-size: 18px;
+                cursor: pointer;
+                color: #999;
+            `;
+            closeBtn.onclick = () => container.remove();
+
+            container.appendChild(closeBtn);
+            container.appendChild(input);
+            container.appendChild(searchBtn);
+
+            function performSearch() {
+                if (!input.value) {
+                    alert('Please select a date');
+                    return;
+                }
+
+                console.log('Selected date:', input.value);
+
+                // First, make sure we're in Date wise mode
+                var dateRadio = document.querySelector('input[name="p_type"][value="1"]');
+                if (dateRadio && !dateRadio.checked) {
+                    console.log('Switching to date wise mode');
+                    dateRadio.checked = true;
+                    // Trigger the show_div function if it exists
+                    if (typeof show_div === 'function') {
+                        show_div(1);
+                    }
+                }
+
+                // Wait a bit for UI to update
+                setTimeout(() => {
+                    // Find the date fields
+                    var fromField = document.querySelector('input[name="f_date"]');
+                    var toField = document.querySelector('input[name="t_date"]');
+                    
+                    console.log('From field found:', !!fromField);
+                    console.log('To field found:', !!toField);
+
+                    if (fromField || toField) {
+                        // For HTML5 date inputs, the value should be in YYYY-MM-DD format
+                        var selectedDate = input.value; // Already in YYYY-MM-DD format
+                        
+                        if (fromField) {
+                            console.log('Setting from field to:', selectedDate);
+                            fromField.value = selectedDate;
+                            fromField.dispatchEvent(new Event('input', { bubbles: true }));
+                            fromField.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        
+                        if (toField) {
+                            console.log('Setting to field to:', selectedDate);
+                            toField.value = selectedDate;
+                            toField.dispatchEvent(new Event('input', { bubbles: true }));
+                            toField.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+
+                        // Wait a bit more and trigger search
+                        setTimeout(() => {
+                            console.log('Triggering search...');
+                            if (typeof get_details === 'function') {
+                                get_details();
+                            } else {
+                                var submitBtn = document.querySelector('.btn.btn-success[onclick*="get_details"]');
+                                if (submitBtn) {
+                                    submitBtn.click();
+                                }
+                            }
+                            container.remove();
+                        }, 200);
+                    } else {
+                        console.error('Could not find date fields');
+                        alert('Could not find date fields on the page');
+                    }
+                }, 100);
+            }
+
+            searchBtn.onclick = performSearch;
+            input.onkeydown = function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    performSearch();
+                }
+            };
+
+            document.body.appendChild(container);
+            input.focus();
+        };
+
+        document.body.appendChild(btn);
+        console.log('Date picker button added');
+    }
+
+    // Initialize when everything is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        // If already loaded, wait a bit more for dynamic content
+        setTimeout(init, 1000);
+    }
+})();

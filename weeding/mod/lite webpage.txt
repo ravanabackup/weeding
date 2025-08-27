@@ -1,0 +1,172 @@
+// ==UserScript==
+// @name         PHHC Weeding Catalogue Optimizer
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Optimize performance of the weeding catalogue page
+// @author       You
+// @match        http://10.145.22.11:8888/weed_catalogue.php
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Performance optimization functions
+    const optimizePerformance = {
+        // Lazy load images
+        lazyLoadImages: function() {
+            const images = document.getElementsByTagName('img');
+            for (let img of images) {
+                if (img.getAttribute('src')) {
+                    img.setAttribute('loading', 'lazy');
+                }
+            }
+        },
+
+        // Optimize DataTables initialization
+        optimizeDataTables: function() {
+            if (typeof $.fn.dataTable !== 'undefined') {
+                $.fn.dataTable.defaults.deferRender = true;
+                $.fn.dataTable.defaults.scroller = true;
+                $.fn.dataTable.defaults.stateSave = true;
+            }
+        },
+
+        // Debounce function for search/filter operations
+        debounce: function(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        },
+
+        // Optimize form submission
+        optimizeForm: function() {
+            const form = document.getElementById('show_weed_details');
+            if (form) {
+                // Cache form elements
+                const formElements = form.elements;
+
+                // Optimize radio button handling
+                const radioButtons = form.querySelectorAll('input[type="radio"]');
+                radioButtons.forEach(radio => {
+                    radio.addEventListener('change', optimizePerformance.debounce(function() {
+                        show_div(this.value);
+                    }, 250));
+                });
+
+                // Optimize date validation
+                const dateInputs = form.querySelectorAll('input[type="text"]');
+                dateInputs.forEach(input => {
+                    if (input.id === 'f_date' || input.id === 't_date') {
+                        input.addEventListener('blur', optimizePerformance.debounce(function() {
+                            validate_date(this.value, this.id);
+                        }, 250));
+                    }
+                });
+            }
+        },
+
+        // Optimize AJAX requests
+        optimizeAjax: function() {
+            if (typeof $ !== 'undefined') {
+                // Set global AJAX defaults
+                $.ajaxSetup({
+                    cache: true,
+                    timeout: 30000
+                });
+
+                // Optimize get_details function
+                window.get_details = optimizePerformance.debounce(function() {
+                    $('.error').html('');
+                    $('#output').html('');
+                    $('#success').html('');
+                    $('#fail_a').html('');
+
+                    let err = 0;
+                    const p_type = $('input[name="p_type"]:checked').val();
+
+                    // Validate form
+                    if (p_type === '2') {
+                        const validationFields = ['t_case_type', 't_case_no', 't_case_year'];
+                        validationFields.forEach(field => {
+                            if (!$('#' + field).val()) {
+                                $('#fail').html('Enter ' + field.replace('t_', '').replace('_', ' '));
+                                err++;
+                            }
+                        });
+                    } else if (p_type === '1') {
+                        const dateFields = ['f_date', 't_date'];
+                        dateFields.forEach(field => {
+                            if (!$('#' + field).val()) {
+                                $('#fail_' + field.charAt(0) + '_d').html('Enter ' + (field === 'f_date' ? 'from' : 'to') + ' date');
+                                err++;
+                            }
+                        });
+                    }
+
+                    if (err > 0) return false;
+
+                    // Optimize AJAX request
+                    $.ajax({
+                        url: "ajax_weed_catalogue.php",
+                        type: "post",
+                        data: $('#show_weed_details').serialize() + "&action=weed_catalogue",
+                        beforeSend: function() {
+                            $('#loader').show();
+                        },
+                        complete: function() {
+                            $('#loader').hide();
+                        },
+                        success: function(result) {
+                            const arr = result.split("!~~!");
+                            if (arr[0] === '1') {
+                                $('#output').html(arr[1]);
+                                if ($.fn.DataTable) {
+                                    $("#weeding_report").DataTable({
+                                        dom: 'Bfrtip',
+                                        buttons: ['copy', 'csv', 'excel', 'print', {
+                                            extend: 'pdfHtml5',
+                                            orientation: 'landscape',
+                                            pageSize: 'LEGAL'
+                                        }],
+                                        paging: false,
+                                        pageLength: 50,
+                                        deferRender: true,
+                                        stateSave: true,
+                                        lengthChange: true
+                                    });
+                                }
+                            } else {
+                                $('#output').html('');
+                                $('#fail').html(arr[1]);
+                            }
+                        }
+                    });
+                }, 500);
+            }
+        }
+    };
+
+    // Initialize optimizations
+    window.addEventListener('load', function() {
+        optimizePerformance.lazyLoadImages();
+        optimizePerformance.optimizeDataTables();
+        optimizePerformance.optimizeForm();
+        optimizePerformance.optimizeAjax();
+    });
+
+    // Add CSS optimizations
+    const style = document.createElement('style');
+    style.textContent = `
+        .loader { opacity: 0.7; }
+        .dtree { contain: content; }
+        img { content-visibility: auto; }
+    `;
+    document.head.appendChild(style);
+})();

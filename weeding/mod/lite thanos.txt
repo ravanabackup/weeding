@@ -1,0 +1,278 @@
+// ==UserScript==
+// @name         Lightweight Row Hide/Show Effect
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Lightweight version for hiding/showing completed rows
+// @author       You
+// @match        http://10.145.22.11:8888/weed_catalogue.php
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Simplified styles with minimal animations
+    const style = document.createElement('style');
+    style.textContent = `
+        .button-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .action-button {
+            padding: 8px 16px;
+            background-color: #7b2cbf;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        .action-button:disabled {
+            background-color: #cccccc;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px;
+            background-color: #2196F3;
+            color: white;
+            border-radius: 4px;
+            z-index: 10000;
+        }
+
+        .hidden {
+            display: none;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Create UI elements
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'button-container';
+
+    const hideButton = document.createElement('button');
+    hideButton.className = 'action-button';
+    hideButton.textContent = 'Hide Complete';
+    buttonContainer.appendChild(hideButton);
+
+    document.body.appendChild(buttonContainer);
+
+    // Store hidden rows data (minimal storage)
+    let hiddenRowsData = [];
+
+    // Track if rows are currently hidden
+    let rowsHidden = false;
+
+    // Simplified row completion check
+    function isRowComplete(row) {
+        if (!row || !row.cells) return false;
+
+        const locationSelect = row.querySelector('select');
+        const inputs = row.querySelectorAll('input[type="text"]');
+        const checkbox = row.querySelector('input[type="checkbox"]');
+
+        return locationSelect?.value &&
+               locationSelect.value !== '0' &&
+               locationSelect.value !== 'Select Location' &&
+               Array.from(inputs).every(input => {
+                   const val = input.value.trim();
+                   return val && val !== '0' && val !== '-';
+               }) &&
+               (!checkbox || !checkbox.checked);
+    }
+
+    // Simplified toast notification
+    function showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Reset only the button to initial state (not affecting rows)
+    function resetButtonOnly() {
+        // Reset button state to initial
+        hideButton.textContent = 'Hide Complete';
+        hideButton.disabled = false;
+
+        showToast('Button reset - rows remain in current state');
+    }
+
+    // Hide complete rows
+    function hideRows() {
+        const rows = Array.from(document.querySelectorAll('table tr')).slice(1);
+        const completeRows = rows.filter(isRowComplete);
+
+        if (completeRows.length === 0) {
+            showToast('No complete rows to hide');
+            return;
+        }
+
+        hideButton.disabled = true;
+
+        // Store and hide rows without animation
+        completeRows.forEach(row => {
+            const inputs = row.querySelectorAll('input, select');
+            const data = Array.from(inputs).map(input => ({
+                id: input.id || input.name,
+                value: input.type === 'checkbox' ? input.checked : input.value
+            }));
+
+            hiddenRowsData.push({
+                data: data,
+                index: Array.from(row.parentNode.children).indexOf(row)
+            });
+
+            row.classList.add('hidden');
+        });
+
+        rowsHidden = true;
+        showToast(`Hidden ${completeRows.length} complete rows`);
+        hideButton.textContent = 'Show Rows';
+        hideButton.disabled = false;
+    }
+
+    // Show hidden rows
+    function showRows() {
+        if (hiddenRowsData.length === 0) {
+            showToast('No hidden rows to show');
+            return;
+        }
+
+        hideButton.disabled = true;
+
+        // Remove 'hidden' class from all rows
+        document.querySelectorAll('.hidden').forEach(row => {
+            row.classList.remove('hidden');
+        });
+
+        // Restore input values
+        hiddenRowsData.forEach(({ data }) => {
+            data.forEach(({ id, value }) => {
+                const input = document.querySelector(`#${id}, [name="${id}"]`);
+                if (input) {
+                    if (input.type === 'checkbox') {
+                        input.checked = value;
+                    } else {
+                        input.value = value;
+                    }
+                }
+            });
+        });
+
+        hiddenRowsData = [];
+        rowsHidden = false;
+        showToast('All rows restored');
+        hideButton.textContent = 'Hide Complete';
+        hideButton.disabled = false;
+    }
+
+    // Toggle between hide and show based on button click
+    hideButton.addEventListener('click', () => {
+        if (hiddenRowsData.length === 0) {
+            hideRows();
+        } else {
+            showRows();
+        }
+    });
+
+    // Add event listener for the submit button click
+    function addSubmitButtonListener() {
+        // Find the submit button by its attributes
+        const submitButton = document.querySelector('button[name="btn_diary"][onclick*="verify_request"]');
+        if (submitButton) {
+            // Store the original onclick function
+            const originalOnClick = submitButton.onclick;
+
+            // Override the onclick event
+            submitButton.onclick = function(event) {
+                // Reset our hide/show button
+                if (hideButton.textContent === 'Show Rows') {
+                    resetButtonOnly();
+                }
+
+                // Call the original onclick function
+                if (typeof originalOnClick === 'function') {
+                    return originalOnClick.call(this, event);
+                } else if (typeof originalOnClick === 'string') {
+                    return eval(originalOnClick);
+                }
+            };
+
+            console.log('Submit button listener added successfully');
+        } else {
+            // If button not found immediately, try again after a short delay
+            setTimeout(addSubmitButtonListener, 1000);
+            console.log('Submit button not found, retrying...');
+        }
+    }
+
+    // Handle the case where the submit button might be added dynamically
+    function setupMutationObserver() {
+        // Initial attempt to find the button
+        addSubmitButtonListener();
+
+        // Watch for DOM changes to catch if the button is added later
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                    // Check if our submit button has been added
+                    const submitButton = document.querySelector('button[name="btn_diary"][onclick*="verify_request"]');
+                    if (submitButton && !submitButton._listenerAdded) {
+                        addSubmitButtonListener();
+                        submitButton._listenerAdded = true;
+                    }
+                }
+            });
+        });
+
+        // Start observing the document with the configured parameters
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    // Initialize the observer
+    setupMutationObserver();
+
+    // Alternative approach: Intercept the verify_request function
+    if (typeof window.verify_request === 'function') {
+        const originalVerifyRequest = window.verify_request;
+        window.verify_request = function(id) {
+            // Reset our hide/show button
+            if (hideButton.textContent === 'Show Rows') {
+                resetButtonOnly();
+            }
+
+            // Call the original function
+            return originalVerifyRequest.call(this, id);
+        };
+        console.log('verify_request function intercepted');
+    } else {
+        // The function might be defined later, so we watch for it
+        Object.defineProperty(window, 'verify_request', {
+            configurable: true,
+            enumerable: true,
+            get: function() {
+                return this._verify_request;
+            },
+            set: function(newFunc) {
+                this._verify_request = function(id) {
+                    // Reset our hide/show button
+                    if (hideButton.textContent === 'Show Rows') {
+                        resetButtonOnly();
+                    }
+
+                    // Call the new function
+                    return newFunc.call(this, id);
+                };
+            }
+        });
+        console.log('verify_request property interceptor set');
+    }
+})();
