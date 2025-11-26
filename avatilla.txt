@@ -1,17 +1,19 @@
 // ==UserScript==
 // @name         Ithu aavatilla Autofiller Loader Enhanced
-// @namespace    http://tampermonkey.net/
-// @version      1.7
-// @description  Loads specific autofiller scripts based on the current webpage URL with dynamic configuration
-// @author       You
+// @namespace    https://ravanabackup.github.io/
+// @version      6.9
+// @description  Scripts to enhance experience of PHHC Webpage
+// @author       ravana69
 // @match        http://10.145.22.11:8888/weed_catalogue.php
 // @match        http://10.145.22.11:8888/report_catalogue.php
 // @match        http://10.145.22.11:8888/enq_caseno.orcl
+// @match        http://10.145.22.11:8888/login2.orcl*
+// @match        http://10.145.22.11:8888/login2.orcl
+// @match        http://10.145.22.12:8080/omnidocs*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @run-at       document-idle
-// ==/UserScript==
+// @run-at       document-start
 
 (function() {
     'use strict';
