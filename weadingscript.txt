@@ -1,27 +1,25 @@
 // ==UserScript==
 // @name         PHHC Modifire
-// @namespace    https://ravanabackup.github.io/
-// @version      6.9
-// @description  Scripts to enhance experience of PHHC Wabpage
-// @author       ravana69
+// @namespace    http://tampermonkey.net/
+// @version      1.7.3
+// @description  Autofiller.
+// @author       System Administrator
 // @match        http://10.145.22.11:8888/weed_catalogue.php
 // @match        http://10.145.22.11:8888/report_catalogue.php
 // @match        http://10.145.22.11:8888/enq_caseno.orcl
 // @match        http://10.145.22.11:8888/login2.orcl*
 // @match        http://10.145.22.11:8888/login2.orcl
 // @match        http://10.145.22.12:8080/omnidocs*
-// @grant        GM_xmlhttpRequest
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @run-at       document-start
+// @grant        GM_addStyle
+// @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
     // Core application constants and state.
-    const CONST_MIN_PROCESS_DELAY_MS = 20000; //
-    const CONST_MAX_PROCESS_DELAY_MS = 30000; //
+    const CONST_MIN_PROCESS_DELAY_MS = 20000; // 
+    const CONST_MAX_PROCESS_DELAY_MS = 30000; // 
     const CONST_QUERY_DARK_THEME_ID = 'QD-33A'; // Reference to 'querydark'
     const CONST_WEEDING_BATCH_ID = 'WBP-404B'; // Reference to 'weeding'
 
