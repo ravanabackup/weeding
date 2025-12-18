@@ -1,0 +1,128 @@
+// ==UserScript==
+// @name         File Movement Auto-Fill & Auto-Click
+// @namespace    http://tampermonkey.net/
+// @version      1.6
+// @description  Manual entry formatting, Date Sync, and Auto-Click "Receive Files"
+// @author       Gemini
+// @match        http://10.145.22.11:8888/file_movement_recv.php
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // --- Configuration ---
+    const dateFromId = 'date_from';
+    const dateToId = 'date_to';
+    const rcvFromId = 'rcv_from';
+    const rcvForId = 'rcv_for';
+    const submitBtnName = 'receive_files'; // The button name/value usually used in these forms
+
+    const rcvFromValue = "60"; 
+    const rcvForValue = "37";  
+
+    // --- 1. Helper: Auto-Click Submit Button ---
+    function clickReceiveButton() {
+        // Look for the button by value or name (Receive Files)
+        const btn = document.querySelector('input[type="submit"], button[type="submit"], input[name="' + submitBtnName + '"]');
+        if (btn) {
+            console.log('[Tampermonkey] Auto-clicking Receive Files button...');
+            btn.click();
+        }
+    }
+
+    // --- 2. Date Logic & UI Injection ---
+    function setupHybridDateInputs() {
+        const dateFrom = document.getElementById(dateFromId);
+        const dateTo = document.getElementById(dateToId);
+
+        [dateFrom, dateTo].forEach(input => {
+            if (!input) return;
+
+            // Clear data on page load
+            input.value = '';
+
+            // UI Setup: Wrap input and add calendar button
+            const wrapper = document.createElement('div');
+            wrapper.style.display = 'inline-flex';
+            wrapper.style.alignItems = 'center';
+            input.parentNode.insertBefore(wrapper, input);
+            wrapper.appendChild(input);
+
+            const picker = document.createElement('input');
+            picker.type = 'date';
+            picker.style.width = '0px';
+            picker.style.height = '0px';
+            picker.style.visibility = 'hidden';
+            picker.style.position = 'absolute';
+            wrapper.appendChild(picker);
+
+            const btn = document.createElement('button');
+            btn.innerHTML = '📅';
+            btn.type = 'button';
+            btn.style.cssText = 'margin-left:5px; cursor:pointer; padding:2px 5px; border:1px solid #ccc; background:#f0f0f0; border-radius:3px;';
+            wrapper.appendChild(btn);
+
+            // Manual Entry Auto-Formatting
+            input.addEventListener('input', (e) => {
+                let val = input.value.replace(/\D/g, '');
+                if (val.length > 8) val = val.substring(0, 8);
+
+                let formatted = val;
+                if (val.length > 2 && val.length <= 4) {
+                    formatted = val.substring(0, 2) + '/' + val.substring(2);
+                } else if (val.length > 4) {
+                    formatted = val.substring(0, 2) + '/' + val.substring(2, 4) + '/' + val.substring(4);
+                }
+
+                input.value = formatted;
+
+                // Sync and Auto-Submit when 8 digits (full date) are typed
+                if (input.id === dateFromId) {
+                    if (dateTo) dateTo.value = formatted;
+                    if (val.length === 8) {
+                        setTimeout(clickReceiveButton, 100);
+                    }
+                }
+            });
+
+            // Open Calendar
+            btn.addEventListener('click', () => {
+                picker.showPicker();
+            });
+
+            // Date picked from Calendar
+            picker.addEventListener('change', () => {
+                if (picker.value) {
+                    const [year, month, day] = picker.value.split('-');
+                    const formattedDate = `${day}/${month}/${year}`;
+                    input.value = formattedDate;
+                    
+                    if (input.id === dateFromId) {
+                        if (dateTo) dateTo.value = formattedDate;
+                        // Auto-Submit after picking from calendar
+                        setTimeout(clickReceiveButton, 100);
+                    }
+                    input.dispatchEvent(new Event('blur', { bubbles: true }));
+                }
+            });
+        });
+    }
+
+    // --- 3. Branch Auto-Fill ---
+    function setSelect(id, value) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.value = value;
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
+    // --- Execution ---
+    setupHybridDateInputs();
+    setTimeout(() => {
+        setSelect(rcvFromId, rcvFromValue);
+        setSelect(rcvForId, rcvForValue);
+    }, 100);
+
+})();
