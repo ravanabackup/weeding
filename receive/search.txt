@@ -1,0 +1,145 @@
+// ==UserScript==
+// @name         Dynamic Search Term Highlighter - Multi-Term & Universal
+// @namespace    http://tampermonkey.net/
+// @version      2.0
+// @description  Highlights multiple terms across all table cells and supports row highlighting on checkbox click.
+// @author       Gemini
+// @match        *://*/*
+// @match        http://10.145.22.11:8888/*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // --- Configuration ---
+    const HIGHLIGHT_COLOR_1 = 'lightgreen'; 
+    const HIGHLIGHT_COLOR_2 = 'yellow';     
+    const HIGHLIGHT_COLOR_3 = '#cyan';      // Color for the second search box
+    const ROW_HIGHLIGHT_COLOR = '#ffddaa'; 
+    const STARTUP_DELAY_MS = 500;           
+    const HIGHLIGHT_CLASS = 'tampermonkey-highlight';
+    const ROW_HIGHLIGHT_CLASS = 'tampermonkey-row-highlight'; 
+    // ---------------------
+
+    function createUI() {
+        const container = document.createElement('div');
+        container.id = 'tampermonkey-highlighter-ui';
+        container.style.cssText = `
+            position: fixed; top: 10px; right: 10px; z-index: 9999;
+            padding: 10px; background-color: #f0f0f0; border: 1px solid #ccc;
+            border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-family: Arial, sans-serif; display: flex; flex-direction: column; gap: 5px;
+        `;
+
+        const input1 = createInput('Search term 1...');
+        const input2 = createInput('Search term 2...');
+        const button = document.createElement('button');
+        button.textContent = 'Highlight All';
+        button.style.cssText = `padding: 5px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;`;
+
+        container.appendChild(input1);
+        container.appendChild(input2);
+        container.appendChild(button);
+        document.body.appendChild(container);
+
+        const highlightHandler = () => {
+            removeHighlights();
+            applyHighlights(input1.value.trim(), HIGHLIGHT_COLOR_1);
+            applyHighlights(input2.value.trim(), HIGHLIGHT_COLOR_2);
+        };
+
+        button.addEventListener('click', highlightHandler);
+        [input1, input2].forEach(el => {
+            el.addEventListener('keydown', (e) => { if (e.key === 'Enter') highlightHandler(); });
+        });
+    }
+
+    function createInput(placeholder) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = placeholder;
+        input.style.cssText = `width: 200px; padding: 5px; border: 1px solid #aaa; border-radius: 3px;`;
+        return input;
+    }
+
+    function applyRowHighlightStyle() {
+        const style = document.createElement('style');
+        style.textContent = `
+            tr.${ROW_HIGHLIGHT_CLASS} { background-color: ${ROW_HIGHLIGHT_COLOR} !important; }
+            .${HIGHLIGHT_CLASS} { border-radius: 2px; padding: 1px; color: black; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function toggleRowHighlight(checkbox) {
+        const row = checkbox.closest('tr');
+        if (row) row.classList.toggle(ROW_HIGHLIGHT_CLASS);
+    }
+
+    function setupRowHighlighting() {
+        document.querySelectorAll('input[type="checkbox"][name="remove[]"]').forEach(checkbox => {
+            checkbox.removeAttribute('onchange'); 
+            checkbox.addEventListener('change', () => toggleRowHighlight(checkbox));
+            if (checkbox.checked) toggleRowHighlight(checkbox);
+        });
+    }
+
+    function removeHighlights() {
+        document.querySelectorAll(`span.${HIGHLIGHT_CLASS}`).forEach(span => {
+            const parent = span.parentNode;
+            parent.replaceChild(document.createTextNode(span.textContent), span);
+            parent.normalize(); // Merges adjacent text nodes
+        });
+    }
+
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    /**
+     * Universal Highlighter: Iterates through ALL table cells
+     */
+    function applyHighlights(searchTerm, color) {
+        if (!searchTerm) return;
+        const regex = new RegExp('(' + escapeRegExp(searchTerm) + ')', 'gi');
+
+        // Target every TD element on the page for complete coverage
+        document.querySelectorAll('td').forEach(td => {
+            // Use a TreeWalker to only affect actual text, preserving inputs/checkboxes
+            const walker = document.createTreeWalker(td, NodeFilter.SHOW_TEXT, null, false);
+            let textNode;
+            const nodesToReplace = [];
+
+            while (textNode = walker.nextNode()) {
+                if (textNode.nodeValue.match(regex)) {
+                    nodesToReplace.push(textNode);
+                }
+            }
+
+            nodesToReplace.forEach(node => {
+                const span = document.createElement('span');
+                span.innerHTML = node.nodeValue.replace(regex, `<span class="${HIGHLIGHT_CLASS}" style="background-color: ${color};">$1</span>`);
+                node.parentNode.replaceChild(span, node);
+                
+                // Unroll the temporary span to keep DOM clean
+                while (span.firstChild) {
+                    span.parentNode.insertBefore(span.firstChild, span);
+                }
+                span.parentNode.removeChild(span);
+            });
+        });
+    }
+
+    const initializeScript = () => {
+        applyRowHighlightStyle();
+        createUI();
+        setTimeout(setupRowHighlighting, STARTUP_DELAY_MS); 
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeScript);
+    } else {
+        initializeScript();
+    }
+})();
